@@ -3,11 +3,7 @@ import { formatDate } from "./date";
 import { formatCurrencyARS } from "./currency";
 import type { MunicipalityPreviewSummary } from "@/lib/services/exports.service";
 
-const TYPE_LABELS: Record<string, string> = {
-  ayuda_economica: "Ayuda Económica",
-  supermercado: "Comercio",
-  otro: "Otro",
-};
+import { getBenefitTypeLabel } from "./benefit-types";
 
 export interface MunicipalityExportResult {
   buffer: Buffer;
@@ -42,7 +38,7 @@ export function buildMunicipalityExcel(
     "Apellido y Nombre": r.fullName,
     "DNI": r.dni,
     "Legajo": r.legajo ?? "",
-    "Tipo de Beneficio": TYPE_LABELS[r.type] ?? r.type,
+    "Tipo de Beneficio": getBenefitTypeLabel(r.type),
     "Fecha de Otorgamiento": formatDate(r.grantDate),
     "Cantidad de Cuotas": r.installmentsCount,
     "Cuota N°": r.installmentNumber,

@@ -41,7 +41,7 @@ export function BenefitFilters({ currentType, currentStatus }: BenefitFiltersPro
         <SelectContent>
           <SelectItem value="_all">Todos los tipos</SelectItem>
           <SelectItem value="ayuda_economica">Ayuda Económica</SelectItem>
-          <SelectItem value="supermercado">Supermercado</SelectItem>
+          <SelectItem value="supermercado">COMERCIO</SelectItem>
           <SelectItem value="otro">Otro</SelectItem>
         </SelectContent>
       </Select>

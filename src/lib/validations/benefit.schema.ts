@@ -49,7 +49,7 @@ export const createBenefitSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["installmentsCount"],
-        message: "El beneficio supermercado solo puede tener 1 cuota",
+        message: "El beneficio COMERCIO solo puede tener 1 cuota",
       });
     }
 

@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { whatsappAlerts } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import type { BenefitCompletedPayload } from "@/types";
+import { getBenefitTypeLabel } from "@/lib/utils/benefit-types";
 
 export type WhatsappAlertType =
   | "benefit_completed"
@@ -59,13 +60,7 @@ export async function sendWhatsAppAlert(params: SendAlertParams): Promise<void> 
 }
 
 export function buildBenefitCompletedMessage(payload: BenefitCompletedPayload): string {
-  const typeLabels: Record<string, string> = {
-    ayuda_economica: "Ayuda Económica",
-    supermercado: "Supermercado",
-    otro: "Otro",
-  };
-
-  const typeLabel = typeLabels[payload.benefitType] ?? payload.benefitType;
+  const typeLabel = getBenefitTypeLabel(payload.benefitType);
   const commerce = payload.commerce ? ` (${payload.commerce})` : "";
 
   return (

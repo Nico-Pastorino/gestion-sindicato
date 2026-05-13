@@ -18,11 +18,7 @@ import { formatDate } from "@/lib/utils/date";
 import type { MunicipalityPreviewSummary } from "@/lib/services/exports.service";
 import type { ExportLog } from "@/types";
 
-const TYPE_LABELS: Record<string, string> = {
-  ayuda_economica: "Ayuda Económica",
-  supermercado: "Comercio",
-  otro: "Otro",
-};
+import { getBenefitTypeLabel } from "@/lib/utils/benefit-types";
 
 interface ExportClientProps {
   initialMonth: number;
@@ -291,7 +287,7 @@ export function ExportClient({
                     <TableCell className="font-medium text-sm">{row.fullName}</TableCell>
                     <TableCell className="hidden sm:table-cell text-sm">{row.dni}</TableCell>
                     <TableCell className="hidden lg:table-cell text-sm">{row.legajo ?? "—"}</TableCell>
-                    <TableCell className="hidden md:table-cell text-xs">{TYPE_LABELS[row.type] ?? row.type}</TableCell>
+                    <TableCell className="hidden md:table-cell text-xs">{getBenefitTypeLabel(row.type)}</TableCell>
                     <TableCell className="hidden lg:table-cell text-sm">{formatDate(row.grantDate)}</TableCell>
                     <TableCell className="hidden sm:table-cell text-sm text-[hsl(var(--muted-foreground))]">
                       {row.installmentsCount}

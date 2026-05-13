@@ -47,7 +47,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { id } = await params;
   const benefit = await getBenefitById(id);
   if (!benefit) return { title: "Beneficio" };
-  const type = { ayuda_economica: "Ayuda Económica", supermercado: "Supermercado", otro: "Otro" }[benefit.type] ?? benefit.type;
+  const type = { ayuda_economica: "Ayuda Económica", supermercado: "COMERCIO", otro: "Otro" }[benefit.type] ?? benefit.type;
   return { title: `${type} — ${benefit.affiliate?.fullName}` };
 }
 
@@ -66,7 +66,7 @@ export default async function BenefitDetailPage({ params }: PageProps) {
 
   const TYPE_LABELS: Record<string, string> = {
     ayuda_economica: "Ayuda Económica",
-    supermercado: "Supermercado / Orden de Compra",
+    supermercado: "COMERCIO",
     otro: "Otro",
   };
 
