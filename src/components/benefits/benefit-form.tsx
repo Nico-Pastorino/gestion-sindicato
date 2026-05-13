@@ -408,9 +408,9 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">
                   <span className="inline-flex items-center gap-1">
                     <CalendarDays className="h-3 w-3" />
-                    {new Date(form.date + "T12:00:00").getDate() <= 20
-                      ? "Día ≤ 20: la primera cuota se descuenta en el mismo mes."
-                      : "Día > 20: la primera cuota se descuenta el mes siguiente."}
+                    {new Date(form.date + "T12:00:00").getDate() <= 19
+                      ? "Día ≤ 19: la primera cuota se descuenta en el mismo mes."
+                      : "Día ≥ 20: la primera cuota pasa al mes siguiente."}
                   </span>
                 </p>
               )}
