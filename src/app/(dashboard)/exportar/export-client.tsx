@@ -274,16 +274,15 @@ export function ExportClient({
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8">N°</TableHead>
-                  <TableHead>Afiliado</TableHead>
+                  <TableHead>Apellido y Nombre</TableHead>
                   <TableHead className="hidden sm:table-cell">DNI</TableHead>
-                  <TableHead className="hidden lg:table-cell">Área</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead className="hidden md:table-cell">Comercio</TableHead>
-                  <TableHead className="hidden md:table-cell">F. Otorg.</TableHead>
-                  <TableHead>Capital</TableHead>
-                  <TableHead>Cuota</TableHead>
-                  <TableHead>Monto</TableHead>
-                  <TableHead>F. Descuento</TableHead>
+                  <TableHead className="hidden lg:table-cell">Legajo</TableHead>
+                  <TableHead className="hidden md:table-cell">Tipo</TableHead>
+                  <TableHead className="hidden md:table-cell">Comercio / Concepto</TableHead>
+                  <TableHead className="hidden lg:table-cell">F. Otorgamiento</TableHead>
+                  <TableHead className="hidden sm:table-cell">Cuotas</TableHead>
+                  <TableHead>Cuota N°</TableHead>
+                  <TableHead>Monto a Descontar</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -292,18 +291,19 @@ export function ExportClient({
                     <TableCell className="text-xs text-[hsl(var(--muted-foreground))]">{idx + 1}</TableCell>
                     <TableCell className="font-medium text-sm">{row.fullName}</TableCell>
                     <TableCell className="hidden sm:table-cell text-sm">{row.dni}</TableCell>
-                    <TableCell className="hidden lg:table-cell text-sm">{row.area ?? "—"}</TableCell>
-                    <TableCell className="text-xs">{TYPE_LABELS[row.type] ?? row.type}</TableCell>
+                    <TableCell className="hidden lg:table-cell text-sm">{row.legajo ?? "—"}</TableCell>
+                    <TableCell className="hidden md:table-cell text-xs">{TYPE_LABELS[row.type] ?? row.type}</TableCell>
                     <TableCell className="hidden md:table-cell text-sm">{row.commerce ?? "—"}</TableCell>
-                    <TableCell className="hidden md:table-cell text-sm">{formatDate(row.grantDate)}</TableCell>
-                    <TableCell className="text-sm">{formatCurrencyARS(row.totalAmount)}</TableCell>
+                    <TableCell className="hidden lg:table-cell text-sm">{formatDate(row.grantDate)}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm text-[hsl(var(--muted-foreground))]">
+                      {row.installmentsCount}
+                    </TableCell>
                     <TableCell className="text-sm text-[hsl(var(--muted-foreground))]">
                       {row.installmentNumber}/{row.totalInstallments}
                     </TableCell>
                     <TableCell className="text-sm font-semibold text-green-700">
                       {formatCurrencyARS(row.installmentAmount)}
                     </TableCell>
-                    <TableCell className="text-sm">{formatDate(row.dueDate)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

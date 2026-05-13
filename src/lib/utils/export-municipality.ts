@@ -36,46 +36,34 @@ export function buildMunicipalityExcel(
   const periodLabel = `${formatDate(periodStart)} al ${formatDate(periodEnd)}`;
   const generatedAt = formatDate(new Date().toISOString().split("T")[0]);
 
-  // Filas de datos
+  // Filas de datos — solo columnas para Municipalidad
   const dataRows = rows.map((r, idx) => ({
     "N°": idx + 1,
     "Apellido y Nombre": r.fullName,
     "DNI": r.dni,
     "Legajo": r.legajo ?? "",
-    "Área Municipal": r.area ?? "",
-    "Tipo": TYPE_LABELS[r.type] ?? r.type,
-    "Comercio / Concepto": r.commerce ?? "",
-    "Fecha Otorgamiento": formatDate(r.grantDate),
-    "Capital Otorgado": formatCurrencyARS(r.totalAmount),
-    "Cant. Cuotas": r.installmentsCount,
+    "Tipo de Beneficio": TYPE_LABELS[r.type] ?? r.type,
+    "Comercio / Proveedor / Concepto": r.commerce ?? "",
+    "Fecha de Otorgamiento": formatDate(r.grantDate),
+    "Cantidad de Cuotas": r.installmentsCount,
     "Cuota N°": r.installmentNumber,
-    "Total Cuotas": r.totalInstallments,
+    "Total de Cuotas": r.totalInstallments,
     "Monto a Descontar": formatCurrencyARS(r.installmentAmount),
-    "Fecha Descuento": formatDate(r.dueDate),
-    "Total a Devolver": formatCurrencyARS(r.totalRepaymentAmount),
-    "Interés Total": formatCurrencyARS(r.interestAmount),
-    "Observaciones": r.observations ?? "",
   }));
 
-  // Fila de totales
+  // Fila de totales — solo Monto a Descontar
   const totalsRow = {
     "N°": "",
     "Apellido y Nombre": "TOTALES",
     "DNI": "",
-    "Legajo": "",
-    "Área Municipal": `${preview.benefitsCount} beneficios`,
-    "Tipo": "",
-    "Comercio / Concepto": "",
-    "Fecha Otorgamiento": "",
-    "Capital Otorgado": formatCurrencyARS(preview.totalPrincipal),
-    "Cant. Cuotas": preview.recordsCount,
+    "Legajo": `${preview.benefitsCount} beneficio${preview.benefitsCount !== 1 ? "s" : ""}`,
+    "Tipo de Beneficio": "",
+    "Comercio / Proveedor / Concepto": "",
+    "Fecha de Otorgamiento": "",
+    "Cantidad de Cuotas": preview.recordsCount,
     "Cuota N°": "",
-    "Total Cuotas": "",
+    "Total de Cuotas": "",
     "Monto a Descontar": formatCurrencyARS(preview.totalInstallment),
-    "Fecha Descuento": "",
-    "Total a Devolver": formatCurrencyARS(preview.totalInstallment),
-    "Interés Total": formatCurrencyARS(preview.totalInterest),
-    "Observaciones": "",
   };
 
   // Crear hoja: 2 filas de encabezado + datos + totales
@@ -95,28 +83,21 @@ export function buildMunicipalityExcel(
 
   const ws = XLSX.utils.json_to_sheet(headerData, { skipHeader: false });
 
-  // Anchos de columna
+  // Anchos de columna (11 columnas)
   ws["!cols"] = [
     { wch: 5 },  // N°
-    { wch: 28 }, // Nombre
-    { wch: 11 }, // DNI
-    { wch: 9 },  // Legajo
-    { wch: 22 }, // Área
-    { wch: 26 }, // Tipo
-    { wch: 22 }, // Comercio
-    { wch: 18 }, // Fecha otorg.
-    { wch: 16 }, // Capital
-    { wch: 10 }, // Cant cuotas
-    { wch: 9 },  // Cuota N°
-    { wch: 10 }, // Total cuotas
-    { wch: 16 }, // Monto desc.
-    { wch: 16 }, // Fecha desc.
-    { wch: 16 }, // Total devolver
-    { wch: 14 }, // Interés
-    { wch: 28 }, // Obs
+    { wch: 30 }, // Apellido y Nombre
+    { wch: 12 }, // DNI
+    { wch: 10 }, // Legajo
+    { wch: 26 }, // Tipo de Beneficio
+    { wch: 28 }, // Comercio / Proveedor / Concepto
+    { wch: 20 }, // Fecha de Otorgamiento
+    { wch: 16 }, // Cantidad de Cuotas
+    { wch: 10 }, // Cuota N°
+    { wch: 14 }, // Total de Cuotas
+    { wch: 18 }, // Monto a Descontar
   ];
 
-  // Congelar la fila de encabezados de columna (fila 6 = índice 5 + 1 header)
   ws["!freeze"] = { xSplit: 0, ySplit: 6 };
 
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
