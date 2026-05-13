@@ -101,23 +101,6 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
   const totalRepayment = calculateTotalRepayment(form.installmentAmount, form.installmentsCount);
   const interestAmount = calculateInterest(form.totalAmount, totalRepayment);
   const interestRate = calculateInterestRate(form.totalAmount, interestAmount);
-  const principalLimitError = useMemo(() => {
-    if (!creditSummary || form.totalAmount <= 0) return null;
-
-    const availableAmount = Number(creditSummary.availableAmount);
-    if (!Number.isFinite(availableAmount) || form.totalAmount <= availableAmount) return null;
-
-    return {
-      availableAmount,
-      principalAmount: form.totalAmount,
-      excess: form.totalAmount - availableAmount,
-    };
-  }, [creditSummary, form.totalAmount]);
-
-  const principalLimitMessage = principalLimitError
-    ? `El monto otorgado supera el disponible del afiliado. Disponible actual: ${formatCurrencyARS(principalLimitError.availableAmount)}. Monto otorgado: ${formatCurrencyARS(principalLimitError.principalAmount)}. Exceso: ${formatCurrencyARS(principalLimitError.excess)}.`
-    : "";
-
   // ─── Búsqueda de afiliado ─────────────────────────────────────────────────
   const searchAffiliate = useCallback(async (q: string) => {
     if (q.length < 2) { setSearchResults([]); return; }
@@ -196,7 +179,6 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
     if (!affiliate) e.affiliateId = "Seleccioná un afiliado";
     if (!form.date) e.date = "La fecha de otorgamiento es obligatoria";
     if (form.totalAmount <= 0) e.totalAmount = "El monto otorgado debe ser mayor a 0";
-    if (principalLimitError) e.totalAmount = principalLimitMessage;
     if (form.installmentAmount <= 0) e.installmentAmount = "La cuota mensual debe ser mayor a 0";
     if (form.installmentsCount < 1) e.installmentsCount = "Mínimo 1 cuota";
     if (form.type === "supermercado" && form.installmentsCount !== 1)
@@ -254,14 +236,7 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
               prev ? { ...prev, valid: false, conflicts: json.details.conflicts } : null
             );
           }
-          if (json.code === "PRINCIPAL_AMOUNT_EXCEEDS_AVAILABLE_LIMIT" && json.details) {
-            const details = json.details;
-            setServerError(
-              `No se puede cargar este beneficio. El monto otorgado supera el tope disponible del afiliado.\n\nTope disponible: ${formatCurrencyARS(details.availableAmount)}\nMonto otorgado: ${formatCurrencyARS(details.principalAmount)}\nExceso: ${formatCurrencyARS(details.excess)}`
-            );
-          } else {
-            setServerError(json.message ?? "Error al guardar el beneficio");
-          }
+          setServerError(json.message ?? "Error al guardar el beneficio");
           return;
         }
 
@@ -275,20 +250,13 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
 
   const maxInstallments = MAX_INSTALLMENTS[form.type] ?? 3;
   const hasConflicts = projection !== null && !projection.valid;
-  const hasPrincipalLimitError = principalLimitError !== null;
   const projectionRequired = affiliate !== null &&
     form.installmentAmount > 0 &&
     form.installmentsCount >= 1 &&
     !!form.date;
-  // El botón solo está habilitado si:
-  // - no hay operación en curso
-  // - no hay proyección en carga
-  // - la proyección ya cargó y no tiene conflictos
-  // - O bien la proyección no es necesaria (sin afiliado/monto)
   const canSubmit =
     !isPending &&
     !isProjecting &&
-    !hasPrincipalLimitError &&
     !hasConflicts &&
     (!projectionRequired || projection !== null);
 
@@ -358,7 +326,7 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
                         </p>
                       </div>
                       <div className="text-right shrink-0 ml-4">
-                        <p className="text-xs text-[hsl(var(--muted-foreground))]">Disponible</p>
+                        <p className="text-xs text-[hsl(var(--muted-foreground))]">Cupo mensual</p>
                         <p className={`text-sm font-semibold ${Number(a.availableAmount) <= 0 ? "text-red-600" : "text-green-600"}`}>
                           {formatCurrencyARS(a.availableAmount)}
                         </p>
@@ -372,21 +340,26 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
 
           {/* Panel disponible del afiliado */}
           {creditSummary && (
-            <div className="grid grid-cols-3 gap-3 rounded-lg bg-[hsl(var(--muted))]/40 p-3 text-center">
-              <div>
-                <p className="text-xs text-[hsl(var(--muted-foreground))]">Salario Bruto</p>
-                <p className="text-sm font-semibold">{formatCurrencyARS(creditSummary.grossSalary)}</p>
+            <div className="rounded-lg bg-[hsl(var(--muted))]/40 p-3 space-y-2">
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Salario Bruto</p>
+                  <p className="text-sm font-semibold">{formatCurrencyARS(creditSummary.grossSalary)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Tope mensual 30%</p>
+                  <p className="text-sm font-semibold text-blue-600">{formatCurrencyARS(creditSummary.creditLimit30)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Cupo mensual libre</p>
+                  <p className={`text-sm font-bold ${Number(creditSummary.availableAmount) <= 0 ? "text-red-600" : "text-green-600"}`}>
+                    {formatCurrencyARS(creditSummary.availableAmount)}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-[hsl(var(--muted-foreground))]">Tope 30%</p>
-                <p className="text-sm font-semibold text-blue-600">{formatCurrencyARS(creditSummary.creditLimit30)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[hsl(var(--muted-foreground))]">Disponible actual</p>
-                <p className={`text-sm font-bold ${Number(creditSummary.availableAmount) <= 0 ? "text-red-600" : "text-green-600"}`}>
-                  {formatCurrencyARS(creditSummary.availableAmount)}
-                </p>
-              </div>
+              <p className="text-xs text-[hsl(var(--muted-foreground))] text-center">
+                El sistema valida que cada cuota mensual, sumada a otros descuentos del mismo mes, no supere el tope del 30%.
+              </p>
             </div>
           )}
         </CardContent>
@@ -456,12 +429,10 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
                 value={form.totalAmount}
                 onChange={(v) => set("totalAmount", v)}
                 placeholder="654.361,66"
-                hasError={!!errors.totalAmount || hasPrincipalLimitError}
+                hasError={!!errors.totalAmount}
               />
-              {(errors.totalAmount || principalLimitMessage) && (
-                <p className="text-xs text-red-600">
-                  {errors.totalAmount || principalLimitMessage}
-                </p>
+              {errors.totalAmount && (
+                <p className="text-xs text-red-600">{errors.totalAmount}</p>
               )}
             </div>
 
@@ -506,21 +477,6 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
               </p>
             </div>
           </div>
-
-          {principalLimitError && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Capital excedido</AlertTitle>
-              <AlertDescription>
-                <div>El monto otorgado supera el disponible del afiliado.</div>
-                <div className="mt-2 space-y-1">
-                  <div>Disponible actual: {formatCurrencyARS(principalLimitError.availableAmount)}</div>
-                  <div>Monto otorgado: {formatCurrencyARS(principalLimitError.principalAmount)}</div>
-                  <div>Exceso: {formatCurrencyARS(principalLimitError.excess)}</div>
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
 
           {/* Resumen de interés */}
           {form.totalAmount > 0 && form.installmentAmount > 0 && (

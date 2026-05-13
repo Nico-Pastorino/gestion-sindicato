@@ -29,22 +29,6 @@ class CreditLimitError extends Error {
   }
 }
 
-class PrincipalAmountExceedsAvailableLimitError extends Error {
-  constructor(
-    message: string,
-    public readonly details: {
-      grossSalary: number;
-      creditLimit30: number;
-      availableAmount: number;
-      principalAmount: number;
-      excess: number;
-    }
-  ) {
-    super(message);
-    this.name = "PrincipalAmountExceedsAvailableLimitError";
-  }
-}
-
 // ─── Validación mensual acumulativa ──────────────────────────────────────────
 
 export async function getMonthlyProjection(
@@ -127,29 +111,9 @@ export async function createBenefit(input: CreateBenefitInput, userId?: string) 
   const dueDates = generateInstallmentDueDates(input.date, input.installmentsCount);
   const calculatedFirstDueDate = dueDates[0];
   const creditLimit30 = roundMoney(grossSalary * 0.30);
-  const availableAmount = roundMoney(Number(creditSummary.availableAmount));
-  const principalAmount = roundMoney(input.totalAmount);
   const affiliateName = creditSummary.fullName;
 
-  // 3. Validación de capital otorgado contra el disponible actual.
-  if (!Number.isFinite(availableAmount)) {
-    throw new Error("No se pudo calcular el disponible actual del afiliado.");
-  }
-
-  if (principalAmount > availableAmount) {
-    throw new PrincipalAmountExceedsAvailableLimitError(
-      "El monto otorgado supera el tope disponible del afiliado.",
-      {
-        grossSalary: roundMoney(grossSalary),
-        creditLimit30,
-        availableAmount,
-        principalAmount,
-        excess: roundMoney(principalAmount - availableAmount),
-      }
-    );
-  }
-
-  // 4. Validación mensual acumulativa — USA LA FUNCIÓN SQL DIRECTA
+  // 3. Validación mensual acumulativa — USA LA FUNCIÓN SQL DIRECTA
   // Esto garantiza que el cálculo se hace contra el estado actual de la DB
   // en el momento exacto de la creación, evitando cualquier inconsistencia.
   const validationResult = await db.execute(sql`
@@ -388,5 +352,5 @@ export async function checkAndFinishBenefit(benefitId: string, userId?: string):
   return true;
 }
 
-// Re-export de errores de validación para usarlos en la API route
-export { CreditLimitError, PrincipalAmountExceedsAvailableLimitError };
+// Re-export de CreditLimitError para usarlo en la API route
+export { CreditLimitError };

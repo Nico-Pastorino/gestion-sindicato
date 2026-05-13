@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  createBenefit,
-  listBenefits,
-  CreditLimitError,
-  PrincipalAmountExceedsAvailableLimitError,
-} from "@/lib/services/benefits.service";
+import { createBenefit, listBenefits, CreditLimitError } from "@/lib/services/benefits.service";
 import { createBenefitSchema, benefitFiltersSchema } from "@/lib/validations/benefit.schema";
 import { parseCurrencyInput } from "@/lib/utils/currency";
 import { ZodError } from "zod";
@@ -148,18 +143,6 @@ export async function POST(req: NextRequest) {
             conflicts: error.details.conflicts,
             firstConflict: error.details.firstConflict,
           },
-        },
-        { status: 400 }
-      );
-    }
-
-    if (error instanceof PrincipalAmountExceedsAvailableLimitError) {
-      return NextResponse.json(
-        {
-          ok: false,
-          code: "PRINCIPAL_AMOUNT_EXCEEDS_AVAILABLE_LIMIT",
-          message: "El monto otorgado supera el tope disponible del afiliado.",
-          details: error.details,
         },
         { status: 400 }
       );
