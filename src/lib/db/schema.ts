@@ -197,6 +197,39 @@ export const settings = pgTable("settings", {
   ...timestamps,
 });
 
+// ─── export_logs ──────────────────────────────────────────────────────────────
+
+export const exportLogs = pgTable(
+  "export_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    type: text("type").notNull().default("municipality"),
+    periodStart: date("period_start").notNull(),
+    periodEnd: date("period_end").notNull(),
+    fileName: text("file_name"),
+    recordsCount: integer("records_count").notNull().default(0),
+    benefitsCount: integer("benefits_count").notNull().default(0),
+    totalPrincipal: numeric("total_principal", { precision: 16, scale: 2 }).notNull().default("0"),
+    totalInstallment: numeric("total_installment", { precision: 16, scale: 2 }).notNull().default("0"),
+    totalInterest: numeric("total_interest", { precision: 16, scale: 2 }).notNull().default("0"),
+    sentByEmail: boolean("sent_by_email").notNull().default(false),
+    emailTo: text("email_to"),
+    emailCc: text("email_cc"),
+    sentByWhatsapp: boolean("sent_by_whatsapp").notNull().default(false),
+    whatsappTo: text("whatsapp_to"),
+    status: text("status", { enum: ["generated", "sent", "failed"] }).notNull().default("generated"),
+    errorMessage: text("error_message"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("export_logs_period_idx").on(t.periodStart, t.periodEnd),
+    index("export_logs_status_idx").on(t.status),
+    index("export_logs_created_at_idx").on(t.createdAt),
+  ]
+);
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
 export const affiliatesRelations = relations(affiliates, ({ many }) => ({
@@ -261,3 +294,6 @@ export type NewWhatsappAlert = typeof whatsappAlerts.$inferInsert;
 
 export type Setting = typeof settings.$inferSelect;
 export type NewSetting = typeof settings.$inferInsert;
+
+export type ExportLog = typeof exportLogs.$inferSelect;
+export type NewExportLog = typeof exportLogs.$inferInsert;

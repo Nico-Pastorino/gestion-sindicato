@@ -15,6 +15,8 @@ export type {
   NewWhatsappAlert,
   Setting,
   NewSetting,
+  ExportLog,
+  NewExportLog,
 } from "@/lib/db/schema";
 
 export type {
