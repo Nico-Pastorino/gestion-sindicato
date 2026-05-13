@@ -8,14 +8,14 @@ export function getBenefitTypeLabel(type: string | null | undefined): string {
     case "supermercado":
     case "supermercado_orden_compra":
     case "orden_compra":
-    case "comercio":     return "COMERCIO";
+    case "comercio":     return "Comercio";
     case "otro":         return "Otro";
     default:             return type ?? "—";
   }
 }
 
 /**
- * Devuelve true para cualquier variante del tipo COMERCIO.
+ * Devuelve true para cualquier variante del tipo Comercio.
  * Regla: solo permite 1 cuota.
  */
 export function isCommerceBenefitType(type: string | null | undefined): boolean {

@@ -41,7 +41,7 @@ const AFFILIATE_STATUS_MAP: Record<AffiliateStatus, { label: string; className: 
 
 const BENEFIT_TYPE_MAP: Record<BenefitType, { label: string; className: string }> = {
   ayuda_economica: { label: "Ayuda Económica", className: "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-600/20 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" },
-  supermercado:    { label: "COMERCIO",        className: "bg-teal-50 text-teal-700 ring-1 ring-inset ring-teal-600/20 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" },
+  supermercado:    { label: "Comercio",        className: "bg-teal-50 text-teal-700 ring-1 ring-inset ring-teal-600/20 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" },
   otro:            { label: "Otro",            className: "bg-gray-50 text-gray-700 ring-1 ring-inset ring-gray-600/20 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" },
 };
 

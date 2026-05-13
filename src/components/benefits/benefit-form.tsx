@@ -182,7 +182,7 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
     if (form.installmentAmount <= 0) e.installmentAmount = "La cuota mensual debe ser mayor a 0";
     if (form.installmentsCount < 1) e.installmentsCount = "Mínimo 1 cuota";
     if (form.type === "supermercado" && form.installmentsCount !== 1)
-      e.installmentsCount = "COMERCIO: solo 1 cuota";
+      e.installmentsCount = "Comercio: solo 1 cuota";
 
     // Bloquear si la proyección todavía se está cargando o si tiene conflictos
     if (isProjecting) {
@@ -378,7 +378,7 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ayuda_economica">Ayuda Económica</SelectItem>
-                  <SelectItem value="supermercado">COMERCIO</SelectItem>
+                  <SelectItem value="supermercado">Comercio</SelectItem>
                   <SelectItem value="otro">Otro</SelectItem>
                 </SelectContent>
               </Select>

@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, message: "La ayuda económica permite un máximo de 3 cuotas." }, { status: 400 });
     }
     if (normalized.type === "supermercado" && Number(normalized.installmentsCount) !== 1) {
-      return NextResponse.json({ ok: false, message: "El beneficio COMERCIO solo puede tener 1 cuota." }, { status: 400 });
+      return NextResponse.json({ ok: false, message: "El beneficio Comercio solo puede tener 1 cuota." }, { status: 400 });
     }
 
     const input = createBenefitSchema.parse(normalized);
