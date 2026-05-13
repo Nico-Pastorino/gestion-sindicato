@@ -50,7 +50,7 @@ export async function createAffiliate(
       dni: input.dni,
       legajo: input.legajo ?? null,
       area: input.area ?? null,
-      grossSalary: String(input.grossSalary),
+      grossSalary: input.grossSalary != null ? String(input.grossSalary) : null,
       phone: input.phone ?? null,
       status: input.status ?? "active",
     })
@@ -93,7 +93,7 @@ export async function updateAffiliate(
       ...(data.legajo !== undefined && { legajo: data.legajo }),
       ...(data.area !== undefined && { area: data.area }),
       ...(data.grossSalary !== undefined && {
-        grossSalary: String(data.grossSalary),
+        grossSalary: data.grossSalary != null ? String(data.grossSalary) : null,
       }),
       ...(data.phone !== undefined && { phone: data.phone }),
       ...(data.status !== undefined && { status: data.status }),

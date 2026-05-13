@@ -5,13 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { AlertTriangle, Loader2, Save, User } from "lucide-react";
@@ -40,7 +34,7 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
     dni: affiliate?.dni ?? "",
     legajo: affiliate?.legajo ?? "",
     area: affiliate?.area ?? "",
-    grossSalary: affiliate ? Number(affiliate.grossSalary) : 0,
+    grossSalary: affiliate?.grossSalary ? Number(affiliate.grossSalary) : 0,
     phone: affiliate?.phone ?? "",
     status: affiliate?.status ?? "active",
   });
@@ -58,7 +52,6 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
     if (form.fullName.trim().length < 2) newErrors.fullName = "Mínimo 2 caracteres";
     if (!form.dni.trim()) newErrors.dni = "El DNI es obligatorio";
     if (!/^\d{7,15}$/.test(form.dni.trim())) newErrors.dni = "DNI inválido (solo números, 7-15 dígitos)";
-    if (form.grossSalary <= 0) newErrors.grossSalary = "El salario debe ser mayor a 0";
     if (form.grossSalary < 0) newErrors.grossSalary = "El salario no puede ser negativo";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -76,7 +69,7 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
           dni: form.dni.trim(),
           legajo: form.legajo.trim() || null,
           area: form.area.trim() || null,
-          grossSalary: form.grossSalary,
+          grossSalary: form.grossSalary > 0 ? form.grossSalary : null,
           phone: form.phone.trim() || null,
           status: form.status,
         };
@@ -226,37 +219,31 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
             {/* Área */}
             <div className="space-y-1.5">
               <Label htmlFor="area">Área Municipal</Label>
-              {areas.length > 0 ? (
-                <Select
-                  value={form.area}
-                  onValueChange={(v) => set("area", v === "_none" ? "" : v)}
-                >
-                  <SelectTrigger id="area">
-                    <SelectValue placeholder="Seleccionar área..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">Sin área</SelectItem>
-                    {areas.map((a) => (
-                      <SelectItem key={a} value={a}>
-                        {a}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input
-                  id="area"
-                  placeholder="Ej: Secretaría de Hacienda"
-                  value={form.area}
-                  onChange={(e) => set("area", e.target.value)}
-                />
+              <Input
+                id="area"
+                list="areas-list"
+                placeholder="Ej: Hacienda, Obras Públicas..."
+                value={form.area}
+                onChange={(e) => set("area", e.target.value)}
+                autoComplete="off"
+              />
+              {areas.length > 0 && (
+                <datalist id="areas-list">
+                  {areas.map((a) => (
+                    <option key={a} value={a} />
+                  ))}
+                </datalist>
               )}
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                Escribí libremente o elegí una existente.
+              </p>
             </div>
 
             {/* Salario bruto */}
             <div className="space-y-1.5">
               <Label htmlFor="grossSalary">
-                Salario Bruto Mensual <span className="text-red-500">*</span>
+                Salario Bruto Mensual
+                <span className="ml-1 text-xs text-[hsl(var(--muted-foreground))]">(opcional)</span>
               </Label>
               <CurrencyInput
                 id="grossSalary"
@@ -265,8 +252,12 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
                 placeholder="654.361,66"
                 hasError={!!errors.grossSalary}
               />
-              {errors.grossSalary && (
+              {errors.grossSalary ? (
                 <p className="text-xs text-red-600">{errors.grossSalary}</p>
+              ) : (
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                  Requerido para cargar beneficios. Se puede completar después.
+                </p>
               )}
             </div>
           </div>
@@ -278,14 +269,14 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
               <div className="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-blue-700 font-medium">
-                    Tope disponible (30%)
+                    Tope mensual 30%
                   </span>
                   <span className="text-blue-800 font-bold text-base">
                     {formatCurrency(creditLimit)}
                   </span>
                 </div>
                 <p className="text-xs text-blue-600 mt-1">
-                  Este es el monto máximo de cuotas mensuales que puede tener el afiliado.
+                  Máximo que se puede descontar por mes en cuotas acumuladas.
                 </p>
               </div>
             </>

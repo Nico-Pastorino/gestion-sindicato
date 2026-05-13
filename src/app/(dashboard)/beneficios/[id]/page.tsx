@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +35,7 @@ import { PayInstallmentButton } from "@/components/benefits/pay-installment-butt
 import { formatCurrency } from "@/lib/utils/credit";
 import { formatDate } from "@/lib/utils/date";
 import { getBenefitById } from "@/lib/services/benefits.service";
+import { calculateBenefitFinancials } from "@/lib/utils/financial";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +62,8 @@ export default async function BenefitDetailPage({ params }: PageProps) {
   const pending = installments.filter((i) => i.status === "pending" || i.status === "overdue");
   const cancelled = installments.filter((i) => i.status === "cancelled");
 
+  const fin = calculateBenefitFinancials(benefit, installments);
+
   const TYPE_LABELS: Record<string, string> = {
     ayuda_economica: "Ayuda Económica",
     supermercado: "Supermercado / Orden de Compra",
@@ -67,8 +71,6 @@ export default async function BenefitDetailPage({ params }: PageProps) {
   };
 
   const isActive = benefit.status === "active";
-  const totalPaid = paid.reduce((sum, i) => sum + Number(i.amount), 0);
-  const totalPending = pending.reduce((sum, i) => sum + Number(i.amount), 0);
 
   return (
     <div className="space-y-6">
@@ -94,8 +96,6 @@ export default async function BenefitDetailPage({ params }: PageProps) {
             </p>
           )}
         </div>
-
-        {/* Acción cancelar — solo si está activo */}
         {isActive && (
           <CancelBenefitButton
             benefitId={benefit.id}
@@ -106,7 +106,6 @@ export default async function BenefitDetailPage({ params }: PageProps) {
 
       {/* Datos del beneficio + afiliado */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* Info del beneficio */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -125,7 +124,7 @@ export default async function BenefitDetailPage({ params }: PageProps) {
               <DataItem label="Comercio" icon={<Store className="h-3.5 w-3.5" />}>
                 {benefit.commerce ?? "—"}
               </DataItem>
-              <DataItem label="Monto total" icon={<CreditCard className="h-3.5 w-3.5" />}>
+              <DataItem label="Capital otorgado" icon={<CreditCard className="h-3.5 w-3.5" />}>
                 <span className="font-semibold">{formatCurrency(benefit.totalAmount)}</span>
               </DataItem>
               <DataItem label="Cuotas" icon={<Hash className="h-3.5 w-3.5" />}>
@@ -152,7 +151,6 @@ export default async function BenefitDetailPage({ params }: PageProps) {
           </CardContent>
         </Card>
 
-        {/* Afiliado */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -187,6 +185,54 @@ export default async function BenefitDetailPage({ params }: PageProps) {
         </Card>
       </div>
 
+      {/* Métricas financieras */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Resumen financiero
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <FinMetric label="Capital otorgado" value={formatCurrency(fin.principalAmount)} />
+            <FinMetric label="Total a devolver" value={formatCurrency(fin.totalRepaymentAmount)} />
+            <FinMetric
+              label="Interés total"
+              value={formatCurrency(fin.interestAmount)}
+              sub={fin.interestAmount > 0 ? `${fin.interestRate.toFixed(2)}%` : undefined}
+              accent={fin.interestAmount > 0 ? "orange" : undefined}
+            />
+            <FinMetric label="Interés por cuota" value={formatCurrency(fin.interestPerInstallment)} />
+          </div>
+          <Separator className="my-4" />
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <FinMetric
+              label="Cobrado hasta ahora"
+              value={formatCurrency(fin.paidAmount)}
+              sub={`${fin.paidInstallmentsCount} cuota${fin.paidInstallmentsCount !== 1 ? "s" : ""}`}
+              accent="green"
+            />
+            <FinMetric
+              label="Pendiente de cobro"
+              value={formatCurrency(fin.pendingAmount)}
+              sub={`${fin.pendingInstallmentsCount} cuota${fin.pendingInstallmentsCount !== 1 ? "s" : ""}`}
+              accent={fin.pendingInstallmentsCount > 0 ? "yellow" : undefined}
+            />
+            <FinMetric
+              label="Ganancia cobrada"
+              value={formatCurrency(fin.earnedInterestAmount)}
+              accent="green"
+            />
+            <FinMetric
+              label="Ganancia pendiente"
+              value={formatCurrency(fin.pendingInterestAmount)}
+              accent={fin.pendingInterestAmount > 0 ? "yellow" : undefined}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Resumen de cuotas */}
       <div className="grid grid-cols-3 gap-4">
         <Card>
@@ -197,7 +243,7 @@ export default async function BenefitDetailPage({ params }: PageProps) {
             <div>
               <p className="text-xs text-[hsl(var(--muted-foreground))]">Pagadas</p>
               <p className="text-lg font-bold text-green-700">{paid.length}</p>
-              <p className="text-xs text-green-600">{formatCurrency(totalPaid)}</p>
+              <p className="text-xs text-green-600">{formatCurrency(fin.paidAmount)}</p>
             </div>
           </CardContent>
         </Card>
@@ -209,7 +255,7 @@ export default async function BenefitDetailPage({ params }: PageProps) {
             <div>
               <p className="text-xs text-[hsl(var(--muted-foreground))]">Pendientes</p>
               <p className="text-lg font-bold text-yellow-700">{pending.length}</p>
-              <p className="text-xs text-yellow-600">{formatCurrency(totalPending)}</p>
+              <p className="text-xs text-yellow-600">{formatCurrency(fin.pendingAmount)}</p>
             </div>
           </CardContent>
         </Card>
@@ -266,8 +312,7 @@ export default async function BenefitDetailPage({ params }: PageProps) {
                       {installment.paidDate ? formatDate(installment.paidDate) : "—"}
                     </TableCell>
                     <TableCell className="text-right">
-                      {(installment.status === "pending" ||
-                        installment.status === "overdue") &&
+                      {(installment.status === "pending" || installment.status === "overdue") &&
                         isActive && (
                           <PayInstallmentButton
                             installmentId={installment.id}
@@ -304,6 +349,31 @@ function DataItem({
         {label}
       </p>
       <div className="text-sm">{children}</div>
+    </div>
+  );
+}
+
+function FinMetric({
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  accent?: "green" | "yellow" | "orange";
+}) {
+  const colors = {
+    green: "text-green-700",
+    yellow: "text-yellow-700",
+    orange: "text-orange-600",
+  };
+  return (
+    <div className="space-y-0.5">
+      <p className="text-xs text-[hsl(var(--muted-foreground))]">{label}</p>
+      <p className={`text-sm font-semibold ${accent ? colors[accent] : ""}`}>{value}</p>
+      {sub && <p className="text-xs text-[hsl(var(--muted-foreground))]">{sub}</p>}
     </div>
   );
 }

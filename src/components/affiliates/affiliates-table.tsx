@@ -71,20 +71,28 @@ export function AffiliatesTable({ affiliates }: AffiliatesTableProps) {
               {affiliate.area ?? "-"}
             </TableCell>
             <TableCell className="hidden xl:table-cell text-sm">
-              {formatCurrency(affiliate.grossSalary)}
+              {affiliate.grossSalary != null
+                ? formatCurrency(affiliate.grossSalary)
+                : <span className="text-[hsl(var(--muted-foreground))]">Pendiente</span>}
             </TableCell>
             <TableCell>
               <div className="min-w-[140px]">
-                <CreditBar
-                  grossSalary={affiliate.grossSalary}
-                  creditLimit30={affiliate.creditLimit30}
-                  activeDiscounts={affiliate.activeDiscounts}
-                  availableAmount={affiliate.availableAmount}
-                  showLabels={false}
-                />
-                <p className="text-xs font-medium mt-1">
-                  {formatCurrency(affiliate.availableAmount)}
-                </p>
+                {affiliate.creditLimit30 != null ? (
+                  <>
+                    <CreditBar
+                      grossSalary={affiliate.grossSalary ?? "0"}
+                      creditLimit30={affiliate.creditLimit30}
+                      activeDiscounts={affiliate.activeDiscounts}
+                      availableAmount={affiliate.availableAmount ?? "0"}
+                      showLabels={false}
+                    />
+                    <p className="text-xs font-medium mt-1">
+                      {formatCurrency(affiliate.availableAmount ?? "0")}
+                    </p>
+                  </>
+                ) : (
+                  <span className="text-xs text-[hsl(var(--muted-foreground))]">Sin salario</span>
+                )}
               </div>
             </TableCell>
             <TableCell className="hidden sm:table-cell">

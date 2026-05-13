@@ -57,13 +57,15 @@ export interface AffiliateCreditSummary {
   legajo: string | null;
   area: string | null;
   status: AffiliateStatus;
-  grossSalary: string;
-  creditLimit30: string;
-  /** Descuento del mes con mayor compromiso (peor mes individual). Usado para validar disponible. */
+  /** null si el afiliado todavía no tiene salario cargado */
+  grossSalary: string | null;
+  /** null si grossSalary es null */
+  creditLimit30: string | null;
+  /** Descuento del mes con mayor compromiso (peor mes individual). */
   activeDiscounts: string;
-  /** Disponible = tope30 - activeDiscounts (peor mes). Así se sabe cuánto cabe en un nuevo beneficio. */
-  availableAmount: string;
-  /** Suma total de todas las cuotas pendientes/vencidas en todos los meses (informativo). */
+  /** null si grossSalary es null (no se puede calcular disponible) */
+  availableAmount: string | null;
+  /** Suma total de todas las cuotas pendientes/vencidas (informativo). */
   totalCommitted?: string;
 }
 

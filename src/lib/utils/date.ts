@@ -1,4 +1,4 @@
-import { format, addMonths, parseISO, isValid, endOfMonth, startOfMonth, subMonths } from "date-fns";
+import { format, addMonths, subMonths, parseISO, isValid, endOfMonth, startOfMonth, setDate } from "date-fns";
 import { es } from "date-fns/locale";
 
 // ─── Regla de corte día 20 ────────────────────────────────────────────────────
@@ -25,11 +25,11 @@ import { es } from "date-fns/locale";
  */
 export function getFirstInstallmentDueDate(grantDate: Date): Date {
   const day = grantDate.getDate();
-  if (day <= 20) {
-    // Mismo mes: último día de este mes
+  if (day <= 19) {
+    // Día 1–19: la primera cuota cae en el mismo mes
     return endOfMonth(grantDate);
   } else {
-    // Mes siguiente: último día del mes que viene
+    // Día 20 en adelante: la primera cuota pasa al mes siguiente
     return endOfMonth(addMonths(grantDate, 1));
   }
 }
@@ -106,4 +106,19 @@ export function isOverdue(dueDateStr: string): boolean {
  */
 export function getCutoffDateForAutoPayment(processDate: Date = new Date()): string {
   return format(endOfMonth(subMonths(processDate, 1)), "yyyy-MM-dd");
+}
+
+/**
+ * Devuelve el período de liquidación municipal para un mes/año dado.
+ * Período: día 20 del mes anterior → día 19 del mes indicado.
+ *
+ * Ejemplo: month=5, year=2026 → { start: "2026-04-20", end: "2026-05-19" }
+ */
+export function getMunicipalityPeriod(month: number, year: number): { start: string; end: string } {
+  const endDate = new Date(year, month - 1, 19);
+  const startDate = setDate(subMonths(endDate, 1), 20);
+  return {
+    start: format(startDate, "yyyy-MM-dd"),
+    end: format(endDate, "yyyy-MM-dd"),
+  };
 }

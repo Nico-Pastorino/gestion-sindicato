@@ -48,9 +48,7 @@ export const affiliates = pgTable(
     dni: text("dni").notNull(),
     legajo: text("legajo"),
     area: text("area"),
-    grossSalary: numeric("gross_salary", { precision: 14, scale: 2 })
-      .notNull()
-      .default("0"),
+    grossSalary: numeric("gross_salary", { precision: 14, scale: 2 }),
     phone: text("phone"),
     status: text("status", { enum: ["active", "inactive"] })
       .notNull()

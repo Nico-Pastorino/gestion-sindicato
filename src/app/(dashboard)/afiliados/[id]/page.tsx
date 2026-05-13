@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   TrendingUp,
   Hash,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +36,7 @@ import { CreditBar } from "@/components/shared/credit-bar";
 import { formatCurrency } from "@/lib/utils/credit";
 import { formatDate } from "@/lib/utils/date";
 import { getAffiliateById, getAffiliateCreditSummary } from "@/lib/services/affiliates.service";
+import { calculateBenefitFinancials, aggregateBenefitFinancials } from "@/lib/utils/financial";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +60,8 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
 
   if (!data) notFound();
 
+  const hasSalary = data.grossSalary != null && Number(data.grossSalary) > 0;
+
   const activeBenefits = data.benefits.filter((b) => b.status === "active");
   const finishedBenefits = data.benefits.filter((b) => b.status === "finished");
   const cancelledBenefits = data.benefits.filter((b) => b.status === "cancelled");
@@ -67,6 +71,13 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
     (i) => i.status === "pending" || i.status === "overdue"
   );
   const paidInstallments = allInstallments.filter((i) => i.status === "paid");
+
+  // Resumen financiero agregado de todos los beneficios no cancelados
+  const nonCancelledBenefits = data.benefits.filter((b) => b.status !== "cancelled");
+  const allFinancials = nonCancelledBenefits.map((b) =>
+    calculateBenefitFinancials(b, b.installments)
+  );
+  const agg = aggregateBenefitFinancials(allFinancials);
 
   return (
     <div className="space-y-6">
@@ -124,6 +135,20 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
         </div>
       </div>
 
+      {/* Alerta salario pendiente */}
+      {!hasSalary && (
+        <div className="flex items-center gap-3 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3">
+          <AlertTriangle className="h-5 w-5 text-yellow-600 shrink-0" />
+          <div className="text-sm text-yellow-800">
+            <strong>Salario bruto pendiente de carga.</strong>{" "}
+            Sin salario no se pueden cargar beneficios.{" "}
+            <Link href={`/afiliados/${data.id}/editar`} className="underline font-medium">
+              Completar ahora
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Cards de crédito */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -132,17 +157,21 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
               Salario Bruto
             </p>
             <p className="text-xl font-bold mt-1">
-              {formatCurrency(data.grossSalary)}
+              {hasSalary ? formatCurrency(data.grossSalary!) : (
+                <span className="text-[hsl(var(--muted-foreground))] text-base">Pendiente</span>
+              )}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-5">
             <p className="text-xs font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
-              Tope 30%
+              Tope Mensual 30%
             </p>
             <p className="text-xl font-bold mt-1 text-blue-600">
-              {formatCurrency(credit?.creditLimit30 ?? "0")}
+              {credit?.creditLimit30 != null
+                ? formatCurrency(credit.creditLimit30)
+                : <span className="text-[hsl(var(--muted-foreground))] text-base">Pendiente</span>}
             </p>
           </CardContent>
         </Card>
@@ -159,30 +188,62 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
         <Card className="border-2 border-green-200">
           <CardContent className="p-5">
             <p className="text-xs font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
-              Disponible
+              Cupo Mensual Libre
             </p>
             <p className="text-xl font-bold mt-1 text-green-600">
-              {formatCurrency(credit?.availableAmount ?? "0")}
+              {credit?.availableAmount != null
+                ? formatCurrency(credit.availableAmount)
+                : <span className="text-[hsl(var(--muted-foreground))] text-base">Pendiente</span>}
             </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Barra de crédito */}
-      {credit && (
+      {credit && hasSalary && (
         <Card>
           <CardContent className="p-5">
             <CreditBar
-              grossSalary={credit.grossSalary}
-              creditLimit30={credit.creditLimit30}
+              grossSalary={credit.grossSalary ?? "0"}
+              creditLimit30={credit.creditLimit30 ?? "0"}
               activeDiscounts={credit.activeDiscounts}
-              availableAmount={credit.availableAmount}
+              availableAmount={credit.availableAmount ?? "0"}
             />
           </CardContent>
         </Card>
       )}
 
-      {/* Tabs de beneficios y cuotas */}
+      {/* Resumen financiero agregado */}
+      {nonCancelledBenefits.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Resumen financiero del afiliado
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <AggMetric label="Capital entregado" value={formatCurrency(agg.principalAmount)} />
+              <AggMetric label="Total a devolver" value={formatCurrency(agg.totalRepaymentAmount)} />
+              <AggMetric label="Ganancia total" value={formatCurrency(agg.interestAmount)} accent="orange" />
+              <AggMetric
+                label="Beneficios activos / finalizados"
+                value={`${activeBenefits.length} / ${finishedBenefits.length}`}
+              />
+            </div>
+            <Separator className="my-4" />
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <AggMetric label="Cobrado" value={formatCurrency(agg.paidAmount)} accent="green" />
+              <AggMetric label="Pendiente de cobro" value={formatCurrency(agg.pendingAmount)} accent="yellow" />
+              <AggMetric label="Ganancia cobrada" value={formatCurrency(agg.earnedInterestAmount)} accent="green" />
+              <AggMetric label="Ganancia pendiente" value={formatCurrency(agg.pendingInterestAmount)} accent="yellow" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Tabs */}
       <Tabs defaultValue="activos">
         <TabsList>
           <TabsTrigger value="activos">
@@ -209,12 +270,9 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="historial">
-            Historial
-          </TabsTrigger>
+          <TabsTrigger value="historial">Historial</TabsTrigger>
         </TabsList>
 
-        {/* Beneficios activos */}
         <TabsContent value="activos">
           <Card>
             <CardContent className="p-0">
@@ -239,8 +297,8 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
                       <TableHead>Beneficio</TableHead>
                       <TableHead className="hidden md:table-cell">Fecha</TableHead>
                       <TableHead>Tipo</TableHead>
-                      <TableHead className="hidden sm:table-cell">Monto Total</TableHead>
-                      <TableHead>Cuota Mensual</TableHead>
+                      <TableHead className="hidden sm:table-cell">Capital</TableHead>
+                      <TableHead>Cuota</TableHead>
                       <TableHead className="hidden md:table-cell">Cuotas</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead className="text-right">Ver</TableHead>
@@ -248,26 +306,18 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
                   </TableHeader>
                   <TableBody>
                     {activeBenefits.map((b) => {
-                      const paid = b.installments.filter((i) => i.status === "paid").length;
+                      const paidCount = b.installments.filter((i) => i.status === "paid").length;
                       return (
                         <TableRow key={b.id}>
-                          <TableCell className="font-medium">
-                            {b.commerce ?? "—"}
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell text-sm">
-                            {formatDate(b.date)}
-                          </TableCell>
+                          <TableCell className="font-medium">{b.commerce ?? "—"}</TableCell>
+                          <TableCell className="hidden md:table-cell text-sm">{formatDate(b.date)}</TableCell>
                           <TableCell>
                             <BenefitTypeBadge type={b.type as "ayuda_economica" | "supermercado" | "otro"} />
                           </TableCell>
-                          <TableCell className="hidden sm:table-cell text-sm">
-                            {formatCurrency(b.totalAmount)}
-                          </TableCell>
-                          <TableCell className="text-sm font-medium">
-                            {formatCurrency(b.installmentAmount)}
-                          </TableCell>
+                          <TableCell className="hidden sm:table-cell text-sm">{formatCurrency(b.totalAmount)}</TableCell>
+                          <TableCell className="text-sm font-medium">{formatCurrency(b.installmentAmount)}</TableCell>
                           <TableCell className="hidden md:table-cell text-sm text-[hsl(var(--muted-foreground))]">
-                            {paid}/{b.installmentsCount}
+                            {paidCount}/{b.installmentsCount}
                           </TableCell>
                           <TableCell>
                             <BenefitStatusBadge status={b.status as "active" | "cancelled" | "finished"} />
@@ -287,7 +337,6 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
           </Card>
         </TabsContent>
 
-        {/* Cuotas pendientes */}
         <TabsContent value="pendientes">
           <Card>
             <CardContent className="p-0">
@@ -309,7 +358,6 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
           </Card>
         </TabsContent>
 
-        {/* Cuotas pagadas */}
         <TabsContent value="pagadas">
           <Card>
             <CardContent className="p-0">
@@ -331,7 +379,6 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
           </Card>
         </TabsContent>
 
-        {/* Historial */}
         <TabsContent value="historial">
           <Card>
             <CardHeader>
@@ -366,9 +413,7 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
                           </p>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-sm font-semibold">
-                            {formatCurrency(b.totalAmount)}
-                          </span>
+                          <span className="text-sm font-semibold">{formatCurrency(b.totalAmount)}</span>
                           <BenefitStatusBadge status={b.status as "active" | "cancelled" | "finished"} />
                           <Button variant="ghost" size="sm" asChild>
                             <Link href={`/beneficios/${b.id}`}>Ver</Link>
@@ -386,18 +431,18 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
   );
 }
 
-// ─── Sub-componentes ──────────────────────────────────────────────────────────
+function AggMetric({ label, value, accent }: { label: string; value: string; accent?: "green" | "yellow" | "orange" }) {
+  const colors = { green: "text-green-700", yellow: "text-yellow-700", orange: "text-orange-600" };
+  return (
+    <div className="space-y-0.5">
+      <p className="text-xs text-[hsl(var(--muted-foreground))]">{label}</p>
+      <p className={`text-sm font-semibold ${accent ? colors[accent] : ""}`}>{value}</p>
+    </div>
+  );
+}
 
-function EmptyState({
-  icon,
-  title,
-  description,
-  action,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  action?: React.ReactNode;
+function EmptyState({ icon, title, description, action }: {
+  icon: React.ReactNode; title: string; description: string; action?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col items-center gap-3 py-12 text-center">
@@ -412,25 +457,12 @@ function EmptyState({
 }
 
 type InstallmentWithBenefit = {
-  id: string;
-  benefitId: string;
-  installmentNumber: number;
-  totalInstallments: number;
-  dueDate: string;
-  paidDate: string | null;
-  amount: string;
-  status: string;
-  benefit?: {
-    commerce: string | null;
-    type: string;
-  };
+  id: string; benefitId: string; installmentNumber: number; totalInstallments: number;
+  dueDate: string; paidDate: string | null; amount: string; status: string;
+  benefit?: { commerce: string | null; type: string };
 };
 
-function InstallmentsTable({
-  installments,
-}: {
-  installments: InstallmentWithBenefit[];
-}) {
+function InstallmentsTable({ installments }: { installments: InstallmentWithBenefit[] }) {
   return (
     <Table>
       <TableHeader>
@@ -447,17 +479,11 @@ function InstallmentsTable({
       <TableBody>
         {installments.map((i) => (
           <TableRow key={i.id}>
-            <TableCell className="text-sm font-medium">
-              {i.benefit?.commerce ?? "—"}
-            </TableCell>
+            <TableCell className="text-sm font-medium">{i.benefit?.commerce ?? "—"}</TableCell>
             <TableCell className="hidden sm:table-cell">
               {i.benefit ? (
-                <BenefitTypeBadge
-                  type={i.benefit.type as "ayuda_economica" | "supermercado" | "otro"}
-                />
-              ) : (
-                "—"
-              )}
+                <BenefitTypeBadge type={i.benefit.type as "ayuda_economica" | "supermercado" | "otro"} />
+              ) : "—"}
             </TableCell>
             <TableCell className="text-sm text-[hsl(var(--muted-foreground))]">
               {i.installmentNumber}/{i.totalInstallments}
@@ -466,13 +492,9 @@ function InstallmentsTable({
             <TableCell className="hidden md:table-cell text-sm">
               {i.paidDate ? formatDate(i.paidDate) : "—"}
             </TableCell>
-            <TableCell className="text-sm font-semibold">
-              {formatCurrency(i.amount)}
-            </TableCell>
+            <TableCell className="text-sm font-semibold">{formatCurrency(i.amount)}</TableCell>
             <TableCell>
-              <InstallmentStatusBadge
-                status={i.status as "pending" | "paid" | "overdue" | "cancelled"}
-              />
+              <InstallmentStatusBadge status={i.status as "pending" | "paid" | "overdue" | "cancelled"} />
             </TableCell>
           </TableRow>
         ))}

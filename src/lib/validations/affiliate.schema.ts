@@ -27,7 +27,9 @@ export const createAffiliateSchema = z.object({
   grossSalary: z
     .number()
     .min(0, "El salario no puede ser negativo")
-    .max(99_999_999, "El salario supera el máximo permitido"),
+    .max(99_999_999, "El salario supera el máximo permitido")
+    .optional()
+    .nullable(),
   phone: z
     .string()
     .max(30, "El teléfono no puede superar 30 caracteres")

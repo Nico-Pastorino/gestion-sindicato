@@ -39,6 +39,7 @@ async function getDashboardData() {
     monthlyStats,
     pendingInstallments,
     paidInstallments,
+    interestStats,
     upcomingInstallments,
     affiliatesWithoutCredit,
   ] = await Promise.all([
@@ -60,10 +61,12 @@ async function getDashboardData() {
       .from(benefits)
       .where(eq(benefits.status, "finished")),
 
-    // Monto otorgado en el mes
+    // Monto otorgado (capital) + interés del mes
     db
       .select({
         totalGranted: sql<string>`COALESCE(SUM(total_amount)::text, '0')`,
+        totalInterest: sql<string>`COALESCE(SUM(interest_amount)::text, '0')`,
+        totalRepayment: sql<string>`COALESCE(SUM(total_repayment_amount)::text, '0')`,
       })
       .from(benefits)
       .where(
@@ -82,7 +85,7 @@ async function getDashboardData() {
       .from(installments)
       .where(inArray(installments.status, ["pending", "overdue"])),
 
-    // Total cobrado este mes
+    // Total cobrado este mes (cuotas pagadas)
     db
       .select({
         total: sql<string>`COALESCE(SUM(amount)::text, '0')`,
@@ -95,6 +98,22 @@ async function getDashboardData() {
           lte(installments.paidDate, lastOfMonth)
         )
       ),
+
+    // Ganancia total acumulada (intereses de todos los beneficios activos+finalizados)
+    db
+      .select({
+        totalEarnedInterest: sql<string>`COALESCE(SUM(interest_amount)::text, '0')`,
+        totalPendingInterest: sql<string>`
+          COALESCE(SUM(
+            interest_amount * (
+              SELECT COUNT(*) FROM installments i
+              WHERE i.benefit_id = benefits.id AND i.status IN ('pending','overdue')
+            )::numeric / NULLIF(installments_count, 0)
+          )::text, '0')
+        `,
+      })
+      .from(benefits)
+      .where(inArray(benefits.status, ["active", "finished"])),
 
     // Próximas cuotas del mes
     db.execute(sql`
@@ -131,9 +150,12 @@ async function getDashboardData() {
     activeBenefits: activeBenefits[0]?.count ?? 0,
     finishedBenefits: finishedBenefits[0]?.count ?? 0,
     monthlyGranted: monthlyStats[0]?.totalGranted ?? "0",
+    monthlyInterest: monthlyStats[0]?.totalInterest ?? "0",
     totalPending: pendingInstallments[0]?.total ?? "0",
     pendingCount: pendingInstallments[0]?.count ?? 0,
     totalCollected: paidInstallments[0]?.total ?? "0",
+    totalEarnedInterest: interestStats[0]?.totalEarnedInterest ?? "0",
+    totalPendingInterest: interestStats[0]?.totalPendingInterest ?? "0",
     upcomingInstallments: upcomingInstallments.rows as Array<{
       id: string;
       amount: string;
@@ -224,6 +246,38 @@ export default async function DashboardPage() {
           subtitle="afiliados al tope del 30%"
           icon={AlertTriangle}
           iconColor="text-red-600"
+        />
+      </div>
+
+      {/* Métricas financieras / ganancias */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          title="Capital Otorgado (mes)"
+          value={formatCurrency(data.monthlyGranted)}
+          subtitle="beneficios del mes actual"
+          icon={CreditCard}
+          iconColor="text-blue-600"
+        />
+        <MetricCard
+          title="Interés del Mes"
+          value={formatCurrency(data.monthlyInterest)}
+          subtitle="ganancia estimada del mes"
+          icon={TrendingUp}
+          iconColor="text-orange-600"
+        />
+        <MetricCard
+          title="Ganancia Cobrada"
+          value={formatCurrency(data.totalEarnedInterest)}
+          subtitle="en todos los beneficios"
+          icon={CheckCircle}
+          iconColor="text-green-600"
+        />
+        <MetricCard
+          title="Ganancia Pendiente"
+          value={formatCurrency(data.totalPendingInterest)}
+          subtitle="interés aún no cobrado"
+          icon={Clock}
+          iconColor="text-yellow-600"
         />
       </div>
 
