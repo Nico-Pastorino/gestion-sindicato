@@ -5,7 +5,7 @@ import type { MunicipalityPreviewSummary } from "@/lib/services/exports.service"
 
 const TYPE_LABELS: Record<string, string> = {
   ayuda_economica: "Ayuda Económica",
-  supermercado: "Supermercado / Orden de Compra",
+  supermercado: "Comercio",
   otro: "Otro",
 };
 
@@ -43,7 +43,6 @@ export function buildMunicipalityExcel(
     "DNI": r.dni,
     "Legajo": r.legajo ?? "",
     "Tipo de Beneficio": TYPE_LABELS[r.type] ?? r.type,
-    "Comercio / Proveedor / Concepto": r.commerce ?? "",
     "Fecha de Otorgamiento": formatDate(r.grantDate),
     "Cantidad de Cuotas": r.installmentsCount,
     "Cuota N°": r.installmentNumber,
@@ -58,7 +57,6 @@ export function buildMunicipalityExcel(
     "DNI": "",
     "Legajo": `${preview.benefitsCount} beneficio${preview.benefitsCount !== 1 ? "s" : ""}`,
     "Tipo de Beneficio": "",
-    "Comercio / Proveedor / Concepto": "",
     "Fecha de Otorgamiento": "",
     "Cantidad de Cuotas": preview.recordsCount,
     "Cuota N°": "",
@@ -74,7 +72,7 @@ export function buildMunicipalityExcel(
     { "N°": "SINDICATO — LIQUIDACIÓN MUNICIPAL" },
     { "N°": `Período: ${periodLabel}` },
     { "N°": `Fecha de generación: ${generatedAt}` },
-    { "N°": `Beneficios incluidos: ${preview.benefitsCount}  |  Cuotas: ${preview.recordsCount}  |  Capital: ${formatCurrencyARS(preview.totalPrincipal)}  |  Total a descontar: ${formatCurrencyARS(preview.totalInstallment)}` },
+    { "N°": `Beneficios incluidos: ${preview.benefitsCount}  |  Cuotas: ${preview.recordsCount}  |  Total a descontar: ${formatCurrencyARS(preview.totalInstallment)}` },
     {}, // fila vacía separadora
     ...dataRows,
     {}, // fila vacía antes de totales
@@ -83,14 +81,13 @@ export function buildMunicipalityExcel(
 
   const ws = XLSX.utils.json_to_sheet(headerData, { skipHeader: false });
 
-  // Anchos de columna (11 columnas)
+  // Anchos de columna (10 columnas)
   ws["!cols"] = [
     { wch: 5 },  // N°
     { wch: 30 }, // Apellido y Nombre
     { wch: 12 }, // DNI
     { wch: 10 }, // Legajo
-    { wch: 26 }, // Tipo de Beneficio
-    { wch: 28 }, // Comercio / Proveedor / Concepto
+    { wch: 20 }, // Tipo de Beneficio
     { wch: 20 }, // Fecha de Otorgamiento
     { wch: 16 }, // Cantidad de Cuotas
     { wch: 10 }, // Cuota N°

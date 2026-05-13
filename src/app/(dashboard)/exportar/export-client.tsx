@@ -20,7 +20,7 @@ import type { ExportLog } from "@/types";
 
 const TYPE_LABELS: Record<string, string> = {
   ayuda_economica: "Ayuda Económica",
-  supermercado: "Supermercado",
+  supermercado: "Comercio",
   otro: "Otro",
 };
 
@@ -278,7 +278,6 @@ export function ExportClient({
                   <TableHead className="hidden sm:table-cell">DNI</TableHead>
                   <TableHead className="hidden lg:table-cell">Legajo</TableHead>
                   <TableHead className="hidden md:table-cell">Tipo</TableHead>
-                  <TableHead className="hidden md:table-cell">Comercio / Concepto</TableHead>
                   <TableHead className="hidden lg:table-cell">F. Otorgamiento</TableHead>
                   <TableHead className="hidden sm:table-cell">Cuotas</TableHead>
                   <TableHead>Cuota N°</TableHead>
@@ -293,7 +292,6 @@ export function ExportClient({
                     <TableCell className="hidden sm:table-cell text-sm">{row.dni}</TableCell>
                     <TableCell className="hidden lg:table-cell text-sm">{row.legajo ?? "—"}</TableCell>
                     <TableCell className="hidden md:table-cell text-xs">{TYPE_LABELS[row.type] ?? row.type}</TableCell>
-                    <TableCell className="hidden md:table-cell text-sm">{row.commerce ?? "—"}</TableCell>
                     <TableCell className="hidden lg:table-cell text-sm">{formatDate(row.grantDate)}</TableCell>
                     <TableCell className="hidden sm:table-cell text-sm text-[hsl(var(--muted-foreground))]">
                       {row.installmentsCount}
