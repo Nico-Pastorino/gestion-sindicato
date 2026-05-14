@@ -77,9 +77,7 @@ export function DashboardClient({
   }
 
   // Parámetros para links de navegación
-  const dateFrom = `${year}-${String(month).padStart(2,"0")}-01`;
-  const dateTo = new Date(year, month, 0).toISOString().split("T")[0];
-  const benefitsUrl = `/beneficios?dateFrom=${dateFrom}&dateTo=${dateTo}`;
+  const p = `month=${month}&year=${year}`;
 
   const profitPercent = summary.estimatedProfit > 0
     ? Math.min(100, Math.round((summary.collectedProfit / summary.estimatedProfit) * 100))
@@ -188,7 +186,7 @@ export function DashboardClient({
         <h2 className="text-base font-semibold mb-3 text-[hsl(var(--foreground))]">Resumen del período</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <ClickCard
-            href={benefitsUrl}
+            href={`/dashboard/capital-entregado?${p}`}
             icon={<DollarSign className="h-5 w-5 text-blue-600" />}
             iconBg="bg-blue-50"
             label="Capital entregado"
@@ -197,7 +195,7 @@ export function DashboardClient({
             description="Monto total entregado en el período"
           />
           <ClickCard
-            href={benefitsUrl}
+            href={`/dashboard/total-a-cobrar?${p}`}
             icon={<TrendingUp className="h-5 w-5 text-purple-600" />}
             iconBg="bg-purple-50"
             label="Total a cobrar"
@@ -206,7 +204,7 @@ export function DashboardClient({
             description="Suma de todas las cuotas generadas"
           />
           <ClickCard
-            href={`/beneficios?status=active`}
+            href={`/dashboard/cobrado?${p}`}
             icon={<CheckCircle className="h-5 w-5 text-green-600" />}
             iconBg="bg-green-50"
             label="Cobrado hasta ahora"
@@ -215,7 +213,7 @@ export function DashboardClient({
             description="Cuotas efectivamente cobradas"
           />
           <ClickCard
-            href={`/beneficios?status=active`}
+            href={`/dashboard/falta-cobrar?${p}`}
             icon={<Clock className="h-5 w-5 text-yellow-600" />}
             iconBg="bg-yellow-50"
             label="Falta cobrar"
@@ -225,7 +223,7 @@ export function DashboardClient({
             alert={summary.overdueInstallmentsCount > 0}
           />
           <ClickCard
-            href={`/beneficios?status=active`}
+            href={`/dashboard/ganancia-estimada?${p}`}
             icon={<TrendingUp className="h-5 w-5 text-orange-600" />}
             iconBg="bg-orange-50"
             label="Ganancia estimada"
@@ -234,7 +232,7 @@ export function DashboardClient({
             description="Ganancia por intereses aplicados"
           />
           <ClickCard
-            href={`/beneficios?status=active`}
+            href={`/dashboard/ganancia-pendiente?${p}`}
             icon={<DollarSign className="h-5 w-5 text-teal-600" />}
             iconBg="bg-teal-50"
             label="Ganancia pendiente"
