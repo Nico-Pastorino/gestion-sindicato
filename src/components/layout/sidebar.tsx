@@ -7,9 +7,6 @@ import {
   Users,
   Gift,
   FileDown,
-  Settings,
-  ShieldCheck,
-  UserCog,
   Building2,
   ChevronRight,
 } from "lucide-react";
@@ -29,11 +26,6 @@ const navItems: NavItem[] = [
   { href: "/exportar",        label: "Exportar",       icon: FileDown },
 ];
 
-const adminItems: NavItem[] = [
-  { href: "/usuarios",        label: "Usuarios",       icon: UserCog },
-  { href: "/auditoria",       label: "Auditoría",      icon: ShieldCheck },
-  { href: "/configuracion",   label: "Configuración",  icon: Settings },
-];
 
 interface SidebarProps {
   className?: string;
@@ -69,16 +61,6 @@ export function Sidebar({ className }: SidebarProps) {
           <NavLink key={item.href} item={item} active={isActive(item.href)} />
         ))}
 
-        {/* Separador */}
-        <div className="pt-4 pb-2 px-2">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30">
-            Administración
-          </p>
-        </div>
-
-        {adminItems.map((item) => (
-          <NavLink key={item.href} item={item} active={isActive(item.href)} />
-        ))}
       </nav>
 
       {/* Footer */}
