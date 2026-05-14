@@ -2,8 +2,6 @@ import { Resend } from "resend";
 import { formatDate } from "@/lib/utils/date";
 import { formatCurrencyARS } from "@/lib/utils/currency";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export interface MunicipalityEmailPayload {
   buffer: Buffer;
   fileName: string;
@@ -34,6 +32,8 @@ export async function sendMunicipalityExportEmail(
   if (!process.env.RESEND_API_KEY) {
     return { ok: false, error: "RESEND_API_KEY no está configurado en variables de entorno." };
   }
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
 
   const periodLabel = `${formatDate(payload.periodStart)} al ${formatDate(payload.periodEnd)}`;
   const subject = `Liquidación Municipal - Período ${periodLabel}`;
