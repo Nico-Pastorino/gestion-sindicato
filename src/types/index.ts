@@ -45,6 +45,8 @@ export type AuditAction =
   | "benefit_updated"
   | "benefit_cancelled"
   | "installment_paid"
+  | "installment_auto_paid"
+  | "installment_unpaid"
   | "installment_cancelled"
   | "salary_updated"
   | "override_credit_limit"

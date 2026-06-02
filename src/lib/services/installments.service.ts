@@ -1,9 +1,10 @@
 import { db } from "@/lib/db";
-import { installments, auditLogs } from "@/lib/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { benefits, installments, auditLogs } from "@/lib/db/schema";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { checkAndFinishBenefit } from "./benefits.service";
 import type { PayInstallmentInput, InstallmentFiltersInput } from "@/lib/validations/installment.schema";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
+import { getCutoffDateForAutoPayment } from "@/lib/utils/date";
 
 // ─── Marcar cuota como pagada ─────────────────────────────────────────────────
 
@@ -25,7 +26,7 @@ export async function payInstallment(input: PayInstallmentInput, userId?: string
   await db.transaction(async (tx) => {
     await tx
       .update(installments)
-      .set({ status: "paid", paidDate })
+      .set({ status: "paid", paidDate, autoPaid: false, paidBy: "operator" })
       .where(eq(installments.id, input.id));
 
     await tx.insert(auditLogs).values({
@@ -41,6 +42,149 @@ export async function payInstallment(input: PayInstallmentInput, userId?: string
   await checkAndFinishBenefit(existing.benefitId, userId);
 
   return { ...existing, status: "paid" as const, paidDate };
+}
+
+// ─── Revertir cuota pagada a no cobrada ──────────────────────────────────────
+
+export async function unpayInstallment(id: string, userId?: string) {
+  const existing = await db.query.installments.findFirst({
+    where: eq(installments.id, id),
+    with: {
+      benefit: { columns: { id: true, status: true } },
+    },
+  });
+
+  if (!existing) throw new Error("Cuota no encontrada");
+  if (existing.status !== "paid") throw new Error("La cuota no está pagada");
+  if (existing.benefit?.status === "cancelled") {
+    throw new Error("No se puede modificar una cuota de un beneficio cancelado");
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+  const nextStatus = existing.dueDate < today ? "overdue" : "pending";
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(installments)
+      .set({
+        status: nextStatus,
+        paidDate: null,
+        autoPaid: false,
+        paidBy: null,
+      })
+      .where(eq(installments.id, id));
+
+    if (existing.benefit?.status === "finished") {
+      await tx
+        .update(benefits)
+        .set({ status: "active" })
+        .where(eq(benefits.id, existing.benefitId));
+
+      await tx.insert(auditLogs).values({
+        userId: userId ?? null,
+        action: "benefit_updated",
+        entityType: "benefit",
+        entityId: existing.benefitId,
+        oldValue: { status: "finished", reason: "installment_unpaid" } as Record<string, unknown>,
+        newValue: { status: "active", reason: "installment_unpaid" } as Record<string, unknown>,
+      });
+    }
+
+    await tx.insert(auditLogs).values({
+      userId: userId ?? null,
+      action: "installment_unpaid",
+      entityType: "installment",
+      entityId: id,
+      oldValue: {
+        status: existing.status,
+        paidDate: existing.paidDate,
+        autoPaid: existing.autoPaid,
+        paidBy: existing.paidBy,
+        benefitStatus: existing.benefit?.status,
+      } as Record<string, unknown>,
+      newValue: {
+        status: nextStatus,
+        paidDate: null,
+        autoPaid: false,
+        paidBy: null,
+        benefitStatus: existing.benefit?.status === "finished" ? "active" : existing.benefit?.status,
+      } as Record<string, unknown>,
+    });
+  });
+
+  return { ...existing, status: nextStatus, paidDate: null, autoPaid: false, paidBy: null };
+}
+
+// ─── Marcar cuotas como pagadas automáticamente ──────────────────────────────
+
+export async function autoPayDueInstallments(processDate = new Date()) {
+  const cutoffDate = getCutoffDateForAutoPayment(processDate);
+  const paidDate = processDate.toISOString().split("T")[0];
+
+  const updated = await db.transaction(async (tx) => {
+    const rows = await tx
+      .select({
+        id: installments.id,
+        benefitId: installments.benefitId,
+        previousStatus: installments.status,
+        dueDate: installments.dueDate,
+        amount: installments.amount,
+      })
+      .from(installments)
+      .where(
+        and(
+          inArray(installments.status, ["pending", "overdue"]),
+          sql`${installments.dueDate} <= ${cutoffDate}`
+        )
+      );
+
+    if (rows.length === 0) return rows;
+
+    await tx
+      .update(installments)
+      .set({
+        status: "paid",
+        paidDate,
+        autoPaid: true,
+        paidBy: "system",
+      })
+      .where(inArray(installments.id, rows.map((row) => row.id)));
+
+    await tx.insert(auditLogs).values(
+      rows.map((row) => ({
+        userId: null,
+        action: "installment_auto_paid",
+        entityType: "installment",
+        entityId: row.id,
+        oldValue: {
+          status: row.previousStatus,
+          dueDate: row.dueDate,
+          amount: row.amount,
+        } as Record<string, unknown>,
+        newValue: {
+          status: "paid",
+          paidDate,
+          autoPaid: true,
+          paidBy: "system",
+          cutoffDate,
+        } as Record<string, unknown>,
+      }))
+    );
+
+    return rows;
+  });
+
+  const benefitIds = [...new Set(updated.map((row) => row.benefitId))];
+  for (const benefitId of benefitIds) {
+    await checkAndFinishBenefit(benefitId);
+  }
+
+  return {
+    processedAt: paidDate,
+    cutoffDate,
+    updatedCount: updated.length,
+    benefitIds,
+  };
 }
 
 // ─── Listar cuotas con filtros (parametrizado, sin SQL injection) ─────────────
@@ -139,4 +283,3 @@ export async function getInstallmentsSummaryByMonth(year: number, month: number)
 
   return result.rows[0];
 }
-

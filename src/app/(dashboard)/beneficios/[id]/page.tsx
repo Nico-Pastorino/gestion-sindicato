@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/badge";
 import { CancelBenefitButton } from "@/components/benefits/cancel-benefit-button";
 import { PayInstallmentButton } from "@/components/benefits/pay-installment-button";
+import { UnpayInstallmentButton } from "@/components/benefits/unpay-installment-button";
 import { formatCurrency } from "@/lib/utils/credit";
 import { formatDate } from "@/lib/utils/date";
 import { getBenefitById } from "@/lib/services/benefits.service";
@@ -322,6 +323,15 @@ export default async function BenefitDetailPage({ params }: PageProps) {
                             dueDate={installment.dueDate}
                           />
                         )}
+                      {installment.status === "paid" && (
+                        <UnpayInstallmentButton
+                          installmentId={installment.id}
+                          installmentNumber={installment.installmentNumber}
+                          totalInstallments={installment.totalInstallments}
+                          amount={installment.amount}
+                          dueDate={installment.dueDate}
+                        />
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

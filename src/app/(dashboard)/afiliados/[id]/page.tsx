@@ -33,6 +33,7 @@ import {
   InstallmentStatusBadge,
 } from "@/components/ui/badge";
 import { CreditBar } from "@/components/shared/credit-bar";
+import { UnpayInstallmentButton } from "@/components/benefits/unpay-installment-button";
 import { formatCurrency } from "@/lib/utils/credit";
 import { formatDate } from "@/lib/utils/date";
 import { getAffiliateById, getAffiliateCreditSummary } from "@/lib/services/affiliates.service";
@@ -474,6 +475,7 @@ function InstallmentsTable({ installments }: { installments: InstallmentWithBene
           <TableHead className="hidden md:table-cell">Pago</TableHead>
           <TableHead>Monto</TableHead>
           <TableHead>Estado</TableHead>
+          <TableHead className="text-right">Acciones</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -495,6 +497,17 @@ function InstallmentsTable({ installments }: { installments: InstallmentWithBene
             <TableCell className="text-sm font-semibold">{formatCurrency(i.amount)}</TableCell>
             <TableCell>
               <InstallmentStatusBadge status={i.status as "pending" | "paid" | "overdue" | "cancelled"} />
+            </TableCell>
+            <TableCell className="text-right">
+              {i.status === "paid" && (
+                <UnpayInstallmentButton
+                  installmentId={i.id}
+                  installmentNumber={i.installmentNumber}
+                  totalInstallments={i.totalInstallments}
+                  amount={i.amount}
+                  dueDate={i.dueDate}
+                />
+              )}
             </TableCell>
           </TableRow>
         ))}
