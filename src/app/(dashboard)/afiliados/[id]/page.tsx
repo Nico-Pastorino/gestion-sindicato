@@ -17,6 +17,7 @@ import {
   FileCheck2,
   Mail,
   Shield,
+  Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +36,7 @@ import {
   BenefitStatusBadge,
   BenefitTypeBadge,
   InstallmentStatusBadge,
+  CollectionMethodBadge,
 } from "@/components/ui/badge";
 import { CreditBar } from "@/components/shared/credit-bar";
 import { SensitiveText, SensitiveValue } from "@/components/privacy/sensitive-value";
@@ -42,7 +44,10 @@ import { UnpayInstallmentButton } from "@/components/benefits/unpay-installment-
 import { formatCurrency } from "@/lib/utils/credit";
 import { formatDate } from "@/lib/utils/date";
 import { getAffiliateById, getAffiliateCreditSummary } from "@/lib/services/affiliates.service";
+import { getAffiliateActivity } from "@/lib/services/audit.service";
 import { calculateBenefitFinancials, aggregateBenefitFinancials } from "@/lib/utils/financial";
+import { calculateComplianceScore, complianceLevelLabel, type ComplianceLevel } from "@/lib/utils/compliance";
+import { ActivityTimeline } from "@/components/audit/activity-timeline";
 
 export const dynamic = "force-dynamic";
 
@@ -59,9 +64,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function AffiliateDetailPage({ params }: PageProps) {
   const { id } = await params;
 
-  const [data, credit] = await Promise.all([
+  const [data, credit, activity] = await Promise.all([
     getAffiliateById(id),
     getAffiliateCreditSummary(id),
+    getAffiliateActivity(id),
   ]);
 
   if (!data) notFound();
@@ -70,13 +76,15 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
 
   const activeBenefits = data.benefits.filter((b) => b.status === "active");
   const finishedBenefits = data.benefits.filter((b) => b.status === "finished");
-  const cancelledBenefits = data.benefits.filter((b) => b.status === "cancelled");
 
   const allInstallments = data.benefits.flatMap((b) => b.installments);
   const pendingInstallments = allInstallments.filter(
     (i) => i.status === "pending" || i.status === "overdue"
   );
   const paidInstallments = allInstallments.filter((i) => i.status === "paid");
+
+  // Cumplimiento: cuotas vencidas cobradas vs. total vencidas (excluye canceladas).
+  const compliance = calculateComplianceScore(allInstallments);
 
   // Resumen financiero agregado de todos los beneficios no cancelados
   const nonCancelledBenefits = data.benefits.filter((b) => b.status !== "cancelled");
@@ -225,6 +233,11 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
         </Card>
       )}
 
+      {/* Cumplimiento de pagos */}
+      {compliance.score !== null && (
+        <ComplianceCard compliance={compliance} />
+      )}
+
       {/* Ficha interna */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card>
@@ -359,6 +372,14 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
             )}
           </TabsTrigger>
           <TabsTrigger value="historial">Historial</TabsTrigger>
+          <TabsTrigger value="actividad">
+            Actividad
+            {activity.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-slate-100 text-slate-700 text-xs px-1.5 py-0.5">
+                {activity.length}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="activos">
@@ -518,8 +539,70 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="actividad">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Actividad del afiliado
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ActivityTimeline items={activity} />
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+const COMPLIANCE_STYLES: Record<ComplianceLevel, { bar: string; text: string; ring: string; bg: string }> = {
+  excellent: { bar: "bg-green-500", text: "text-green-700", ring: "ring-green-600/20", bg: "bg-green-50" },
+  good:      { bar: "bg-emerald-500", text: "text-emerald-700", ring: "ring-emerald-600/20", bg: "bg-emerald-50" },
+  warning:   { bar: "bg-yellow-500", text: "text-yellow-700", ring: "ring-yellow-600/20", bg: "bg-yellow-50" },
+  critical:  { bar: "bg-red-500", text: "text-red-700", ring: "ring-red-600/20", bg: "bg-red-50" },
+  none:      { bar: "bg-gray-300", text: "text-gray-600", ring: "ring-gray-500/20", bg: "bg-gray-50" },
+};
+
+function ComplianceCard({
+  compliance,
+}: {
+  compliance: ReturnType<typeof calculateComplianceScore>;
+}) {
+  const s = COMPLIANCE_STYLES[compliance.level];
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${s.bg}`}>
+              <Gauge className={`h-5 w-5 ${s.text}`} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold flex items-center gap-2">
+                Cumplimiento de pagos
+                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${s.bg} ${s.text} ${s.ring}`}>
+                  {complianceLevelLabel(compliance.level)}
+                </span>
+              </p>
+              <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
+                {compliance.collected} de {compliance.total} cuota{compliance.total !== 1 ? "s" : ""} vencida{compliance.total !== 1 ? "s" : ""} cobrada{compliance.collected !== 1 ? "s" : ""}
+                {compliance.uncollected > 0 && ` · ${compliance.uncollected} en mora`}
+              </p>
+            </div>
+          </div>
+          <p className={`text-3xl font-bold ${s.text}`}>{compliance.score}%</p>
+        </div>
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[hsl(var(--muted))]">
+          <div className={`h-full rounded-full ${s.bar}`} style={{ width: `${compliance.score}%` }} />
+        </div>
+        <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">
+          Porcentaje de cuotas ya vencidas que se cobraron (retención municipal o cobro manual). No incluye cuotas por vencer ni canceladas.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -579,6 +662,7 @@ function EmptyState({ icon, title, description, action }: {
 type InstallmentWithBenefit = {
   id: string; benefitId: string; installmentNumber: number; totalInstallments: number;
   dueDate: string; paidDate: string | null; amount: string; status: string;
+  autoPaid?: boolean | null; paidBy?: string | null;
   benefit?: { commerce: string | null; type: string };
 };
 
@@ -594,6 +678,7 @@ function InstallmentsTable({ installments }: { installments: InstallmentWithBene
           <TableHead className="hidden md:table-cell">Pago</TableHead>
           <TableHead>Monto</TableHead>
           <TableHead>Estado</TableHead>
+          <TableHead className="hidden lg:table-cell">Cobro</TableHead>
           <TableHead className="text-right">Acciones</TableHead>
         </TableRow>
       </TableHeader>
@@ -618,6 +703,13 @@ function InstallmentsTable({ installments }: { installments: InstallmentWithBene
             </TableCell>
             <TableCell>
               <InstallmentStatusBadge status={i.status as "pending" | "paid" | "overdue" | "cancelled"} />
+            </TableCell>
+            <TableCell className="hidden lg:table-cell">
+              {i.status === "paid" ? (
+                <CollectionMethodBadge autoPaid={i.autoPaid} paidBy={i.paidBy} />
+              ) : (
+                <span className="text-sm text-[hsl(var(--muted-foreground))]">—</span>
+              )}
             </TableCell>
             <TableCell className="text-right">
               {i.status === "paid" && (

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   DollarSign, TrendingUp, CheckCircle, Clock, AlertTriangle,
-  Users, Gift, ChevronRight, ArrowRight, RefreshCw,
+  Users, Gift, ChevronRight, ArrowRight, RefreshCw, FileText,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -14,7 +14,6 @@ import { SensitiveText, SensitiveValue } from "@/components/privacy/sensitive-va
 import { DashboardCharts } from "@/components/dashboard/dashboard-charts";
 import { formatCurrencyARS } from "@/lib/utils/currency";
 import { formatDate } from "@/lib/utils/date";
-import { getBenefitTypeLabel } from "@/lib/utils/benefit-types";
 import type {
   DashboardSummary,
   PendingInstallmentRow,
@@ -175,6 +174,15 @@ export function DashboardClient({
                 </button>
               ))}
             </div>
+
+            <Link
+              href={`/reportes/mensual?month=${month}&year=${year}`}
+              target="_blank"
+              className="ml-auto flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-[hsl(var(--accent))] transition-colors"
+            >
+              <FileText className="h-4 w-4" />
+              Reporte PDF
+            </Link>
           </div>
 
           <p className="mt-2 text-sm font-semibold text-[hsl(var(--foreground))]">

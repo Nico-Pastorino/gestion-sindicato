@@ -157,6 +157,9 @@ export const installments = pgTable(
     // Campos para pago automático (cron)
     autoPaid: boolean("auto_paid").notNull().default(false),
     paidBy: text("paid_by", { enum: ["system", "admin", "operator"] }),
+    // Conciliación: motivo cuando se revierte un cobro (municipalidad no retuvo)
+    uncollectedReason: text("uncollected_reason"),
+    uncollectedAt: timestamp("uncollected_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [

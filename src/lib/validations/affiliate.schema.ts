@@ -88,7 +88,31 @@ export const affiliateSearchSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+// ─── Explorador / exportador de afiliados ────────────────────────────────────
+// Filtros flexibles por los datos del legajo. La parte de filtros se reutiliza
+// para listar (paginado) y para exportar (todo el conjunto).
+
+export const affiliateExploreFiltersSchema = z.object({
+  search: z.string().trim().optional(),
+  area: z.string().trim().optional(),
+  sector: z.string().trim().optional(),
+  city: z.string().trim().optional(),
+  neighborhood: z.string().trim().optional(),
+  province: z.string().trim().optional(),
+  employmentType: z.enum(["planta", "contratado", "jubilado", "otro"]).optional(),
+  status: z.enum(["active", "inactive"]).optional(),
+  documentationStatus: z.enum(["complete", "pending", "missing"]).optional(),
+  hasSalary: z.enum(["yes", "no"]).optional(),
+});
+
+export const affiliateExploreSchema = affiliateExploreFiltersSchema.extend({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+});
+
 export type CreateAffiliateInput = z.infer<typeof createAffiliateSchema>;
 export type UpdateAffiliateInput = z.infer<typeof updateAffiliateSchema>;
 export type UpdateSalaryInput = z.infer<typeof updateSalarySchema>;
 export type AffiliateSearchInput = z.infer<typeof affiliateSearchSchema>;
+export type AffiliateExploreFilters = z.infer<typeof affiliateExploreFiltersSchema>;
+export type AffiliateExploreInput = z.infer<typeof affiliateExploreSchema>;

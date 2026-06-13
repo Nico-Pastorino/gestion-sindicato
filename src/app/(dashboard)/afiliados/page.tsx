@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Plus, Users } from "lucide-react";
+import { Plus, Users, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AffiliateSearch } from "@/components/affiliates/affiliate-search";
@@ -76,12 +76,20 @@ export default async function AffiliatesPage({ searchParams }: PageProps) {
             {total} afiliado{total !== 1 ? "s" : ""} registrado{total !== 1 ? "s" : ""}
           </p>
         </div>
-        <Button asChild>
-          <Link href="/afiliados/nuevo">
-            <Plus className="h-4 w-4" />
-            Nuevo afiliado
-          </Link>
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          <Button variant="outline" asChild>
+            <Link href="/afiliados/explorar">
+              <Filter className="h-4 w-4" />
+              Explorar y exportar
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/afiliados/nuevo">
+              <Plus className="h-4 w-4" />
+              Nuevo afiliado
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Buscador y filtros */}

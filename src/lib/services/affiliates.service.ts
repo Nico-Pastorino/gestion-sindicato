@@ -1,11 +1,13 @@
 import { db } from "@/lib/db";
 import { affiliates } from "@/lib/db/schema";
-import { eq, ilike, or, and, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { logAudit } from "./audit.service";
 import type {
   CreateAffiliateInput,
   UpdateAffiliateInput,
   AffiliateSearchInput,
+  AffiliateExploreFilters,
+  AffiliateExploreInput,
 } from "@/lib/validations/affiliate.schema";
 import type { AffiliateCreditSummary } from "@/types";
 
@@ -260,6 +262,150 @@ export async function getAffiliateByLegajo(legajo: string) {
   return db.query.affiliates.findFirst({
     where: eq(affiliates.legajo, legajo),
   });
+}
+
+// ─── Explorador / exportador de afiliados ────────────────────────────────────
+
+export interface AffiliateExportRow {
+  id: string;
+  fullName: string;
+  dni: string;
+  cuil: string | null;
+  legajo: string | null;
+  area: string | null;
+  sector: string | null;
+  position: string | null;
+  employmentType: string | null;
+  workShift: string | null;
+  phone: string | null;
+  alternatePhone: string | null;
+  email: string | null;
+  streetAddress: string | null;
+  addressNumber: string | null;
+  neighborhood: string | null;
+  city: string | null;
+  province: string | null;
+  postalCode: string | null;
+  grossSalary: string | null;
+  status: string;
+  documentationStatus: string;
+  hireDate: string | null;
+  affiliationDate: string | null;
+}
+
+/** WHERE compartido por el listado y la exportación (parametrizado). */
+function buildExploreWhere(f: AffiliateExploreFilters) {
+  let where = sql`1=1`;
+  if (f.search) {
+    where = sql`${where} AND (
+      a.full_name ILIKE ${"%" + f.search + "%"}
+      OR a.dni ILIKE ${"%" + f.search + "%"}
+      OR a.legajo ILIKE ${"%" + f.search + "%"}
+      OR a.cuil ILIKE ${"%" + f.search + "%"}
+    )`;
+  }
+  if (f.area) where = sql`${where} AND a.area ILIKE ${"%" + f.area + "%"}`;
+  if (f.sector) where = sql`${where} AND a.sector ILIKE ${"%" + f.sector + "%"}`;
+  if (f.city) where = sql`${where} AND a.city ILIKE ${"%" + f.city + "%"}`;
+  if (f.neighborhood) where = sql`${where} AND a.neighborhood ILIKE ${"%" + f.neighborhood + "%"}`;
+  if (f.province) where = sql`${where} AND a.province ILIKE ${"%" + f.province + "%"}`;
+  if (f.employmentType) where = sql`${where} AND a.employment_type = ${f.employmentType}`;
+  if (f.status) where = sql`${where} AND a.status = ${f.status}`;
+  if (f.documentationStatus) where = sql`${where} AND a.documentation_status = ${f.documentationStatus}`;
+  if (f.hasSalary === "yes") where = sql`${where} AND a.gross_salary IS NOT NULL AND a.gross_salary > 0`;
+  if (f.hasSalary === "no") where = sql`${where} AND (a.gross_salary IS NULL OR a.gross_salary = 0)`;
+  return where;
+}
+
+const EXPORT_SELECT = sql`
+  a.id,
+  a.full_name           AS "fullName",
+  a.dni,
+  a.cuil,
+  a.legajo,
+  a.area,
+  a.sector,
+  a.position,
+  a.employment_type     AS "employmentType",
+  a.work_shift          AS "workShift",
+  a.phone,
+  a.alternate_phone     AS "alternatePhone",
+  a.email,
+  a.street_address      AS "streetAddress",
+  a.address_number      AS "addressNumber",
+  a.neighborhood,
+  a.city,
+  a.province,
+  a.postal_code         AS "postalCode",
+  a.gross_salary        AS "grossSalary",
+  a.status,
+  a.documentation_status AS "documentationStatus",
+  a.hire_date           AS "hireDate",
+  a.affiliation_date    AS "affiliationDate"
+`;
+
+/** Listado paginado para la tabla del explorador. */
+export async function exploreAffiliates(input: AffiliateExploreInput) {
+  const { page, limit, ...filters } = input;
+  const offset = (page - 1) * limit;
+  const where = buildExploreWhere(filters);
+
+  const [rows, countResult] = await Promise.all([
+    db.execute(sql`
+      SELECT ${EXPORT_SELECT}
+      FROM affiliates a
+      WHERE ${where}
+      ORDER BY a.full_name ASC
+      LIMIT ${limit} OFFSET ${offset}
+    `),
+    db.execute(sql`SELECT COUNT(*)::int AS count FROM affiliates a WHERE ${where}`),
+  ]);
+
+  const total = (countResult.rows[0] as { count: number })?.count ?? 0;
+  return {
+    data: rows.rows as unknown as AffiliateExportRow[],
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
+/** Todos los afiliados que matchean los filtros (para exportar). Cap defensivo. */
+export async function getAffiliatesForExport(
+  filters: AffiliateExploreFilters
+): Promise<AffiliateExportRow[]> {
+  const where = buildExploreWhere(filters);
+  const rows = await db.execute(sql`
+    SELECT ${EXPORT_SELECT}
+    FROM affiliates a
+    WHERE ${where}
+    ORDER BY a.full_name ASC
+    LIMIT 10000
+  `);
+  return rows.rows as unknown as AffiliateExportRow[];
+}
+
+/** Valores distintos para poblar los selects de filtros. */
+export async function getAffiliateFilterOptions() {
+  const result = await db.execute(sql`
+    SELECT 'area' AS field, area AS value FROM affiliates WHERE area IS NOT NULL AND area <> ''
+    UNION
+    SELECT 'sector' AS field, sector AS value FROM affiliates WHERE sector IS NOT NULL AND sector <> ''
+    UNION
+    SELECT 'city' AS field, city AS value FROM affiliates WHERE city IS NOT NULL AND city <> ''
+    UNION
+    SELECT 'province' AS field, province AS value FROM affiliates WHERE province IS NOT NULL AND province <> ''
+    ORDER BY value ASC
+  `);
+
+  const rows = result.rows as { field: string; value: string }[];
+  return {
+    areas: rows.filter((r) => r.field === "area").map((r) => r.value),
+    sectors: rows.filter((r) => r.field === "sector").map((r) => r.value),
+    cities: rows.filter((r) => r.field === "city").map((r) => r.value),
+    provinces: rows.filter((r) => r.field === "province").map((r) => r.value),
+  };
 }
 
 // ─── Obtener lista de áreas únicas ────────────────────────────────────────────

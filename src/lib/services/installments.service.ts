@@ -2,7 +2,8 @@ import { db } from "@/lib/db";
 import { benefits, installments, auditLogs } from "@/lib/db/schema";
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { checkAndFinishBenefit } from "./benefits.service";
-import type { PayInstallmentInput, InstallmentFiltersInput } from "@/lib/validations/installment.schema";
+import type { PayInstallmentInput, InstallmentFiltersInput, BulkUnpayInput } from "@/lib/validations/installment.schema";
+import { UNCOLLECTED_REASONS } from "@/lib/validations/installment.schema";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { getCutoffDateForAutoPayment } from "@/lib/utils/date";
 
@@ -113,6 +114,189 @@ export async function unpayInstallment(id: string, userId?: string) {
   });
 
   return { ...existing, status: nextStatus, paidDate: null, autoPaid: false, paidBy: null };
+}
+
+// ─── Conciliación masiva: revertir varias cuotas con un motivo ───────────────
+// Para el flujo del día 5: la municipalidad informa qué NO retuvo y se revierten
+// en lote esas cuotas auto-cobradas, dejando asentado el motivo.
+
+export async function bulkUnpayInstallments(input: BulkUnpayInput, userId?: string) {
+  const reasonLabel = UNCOLLECTED_REASONS[input.reason];
+  const reasonText = input.note ? `${reasonLabel} — ${input.note}` : reasonLabel;
+  const today = new Date().toISOString().split("T")[0];
+  const uncollectedAt = new Date();
+
+  const rows = await db
+    .select({
+      id: installments.id,
+      benefitId: installments.benefitId,
+      dueDate: installments.dueDate,
+      status: installments.status,
+      paidDate: installments.paidDate,
+      autoPaid: installments.autoPaid,
+      paidBy: installments.paidBy,
+      benefitStatus: benefits.status,
+    })
+    .from(installments)
+    .innerJoin(benefits, eq(benefits.id, installments.benefitId))
+    .where(inArray(installments.id, input.ids));
+
+  // Solo se pueden revertir cuotas pagadas de beneficios no cancelados.
+  const eligible = rows.filter(
+    (r) => r.status === "paid" && r.benefitStatus !== "cancelled"
+  );
+  const skipped = rows.length - eligible.length;
+
+  if (eligible.length === 0) {
+    return { reverted: 0, skipped: input.ids.length, reason: reasonText };
+  }
+
+  await db.transaction(async (tx) => {
+    for (const row of eligible) {
+      const nextStatus = row.dueDate < today ? "overdue" : "pending";
+
+      await tx
+        .update(installments)
+        .set({
+          status: nextStatus,
+          paidDate: null,
+          autoPaid: false,
+          paidBy: null,
+          uncollectedReason: reasonText,
+          uncollectedAt,
+        })
+        .where(eq(installments.id, row.id));
+
+      if (row.benefitStatus === "finished") {
+        await tx
+          .update(benefits)
+          .set({ status: "active" })
+          .where(eq(benefits.id, row.benefitId));
+      }
+
+      await tx.insert(auditLogs).values({
+        userId: userId ?? null,
+        action: "installment_unpaid",
+        entityType: "installment",
+        entityId: row.id,
+        oldValue: {
+          status: row.status,
+          paidDate: row.paidDate,
+          autoPaid: row.autoPaid,
+          paidBy: row.paidBy,
+        } as Record<string, unknown>,
+        newValue: {
+          status: nextStatus,
+          paidDate: null,
+          autoPaid: false,
+          paidBy: null,
+          uncollectedReason: reasonText,
+          source: "bulk_reconciliation",
+        } as Record<string, unknown>,
+      });
+    }
+  });
+
+  const benefitIds = [...new Set(eligible.map((r) => r.benefitId))];
+  for (const benefitId of benefitIds) {
+    await checkAndFinishBenefit(benefitId);
+  }
+
+  return { reverted: eligible.length, skipped, reason: reasonText };
+}
+
+// ─── Listar cuotas auto-cobradas (para conciliación) ─────────────────────────
+// Cuotas marcadas como pagadas por el cron (auto_paid=true), filtrables por el
+// mes en que se registró el cobro (paid_date). Por defecto el mes corriente.
+
+export interface AutoPaidInstallmentRow {
+  id: string;
+  benefitId: string;
+  affiliateId: string;
+  affiliateName: string;
+  affiliateDni: string;
+  affiliateLegajo: string | null;
+  affiliateArea: string | null;
+  benefitType: string;
+  commerce: string | null;
+  installmentNumber: number;
+  totalInstallments: number;
+  dueDate: string;
+  paidDate: string | null;
+  amount: string;
+}
+
+export async function listAutoPaidInstallments(params: {
+  month?: number;
+  year?: number;
+  search?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const page = params.page ?? 1;
+  const limit = params.limit ?? 50;
+  const offset = (page - 1) * limit;
+
+  let where = sql`i.auto_paid = true AND i.status = 'paid'`;
+  if (params.month && params.year) {
+    where = sql`${where} AND EXTRACT(MONTH FROM i.paid_date) = ${params.month} AND EXTRACT(YEAR FROM i.paid_date) = ${params.year}`;
+  }
+  if (params.search) {
+    where = sql`${where} AND (
+      a.full_name ILIKE ${"%" + params.search + "%"}
+      OR a.dni ILIKE ${"%" + params.search + "%"}
+      OR a.legajo ILIKE ${"%" + params.search + "%"}
+    )`;
+  }
+
+  const [rows, countResult, totalsResult] = await Promise.all([
+    db.execute(sql`
+      SELECT
+        i.id,
+        i.benefit_id        AS "benefitId",
+        i.affiliate_id      AS "affiliateId",
+        a.full_name         AS "affiliateName",
+        a.dni               AS "affiliateDni",
+        a.legajo            AS "affiliateLegajo",
+        a.area              AS "affiliateArea",
+        b.type              AS "benefitType",
+        b.commerce,
+        i.installment_number AS "installmentNumber",
+        i.total_installments AS "totalInstallments",
+        i.due_date          AS "dueDate",
+        i.paid_date         AS "paidDate",
+        i.amount
+      FROM installments i
+      JOIN affiliates a ON a.id = i.affiliate_id
+      JOIN benefits   b ON b.id = i.benefit_id
+      WHERE ${where}
+      ORDER BY a.full_name ASC, i.due_date ASC
+      LIMIT ${limit} OFFSET ${offset}
+    `),
+    db.execute(sql`
+      SELECT COUNT(*)::int AS count
+      FROM installments i
+      JOIN affiliates a ON a.id = i.affiliate_id
+      WHERE ${where}
+    `),
+    db.execute(sql`
+      SELECT COALESCE(SUM(i.amount::numeric), 0) AS total
+      FROM installments i
+      JOIN affiliates a ON a.id = i.affiliate_id
+      WHERE ${where}
+    `),
+  ]);
+
+  const total = (countResult.rows[0] as { count: number })?.count ?? 0;
+
+  return {
+    data: rows.rows as unknown as AutoPaidInstallmentRow[],
+    total,
+    totalAmount: Number((totalsResult.rows[0] as { total: string })?.total ?? 0),
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
 }
 
 // ─── Marcar cuotas como pagadas automáticamente ──────────────────────────────
@@ -232,6 +416,9 @@ export async function listInstallments(input: InstallmentFiltersInput) {
         i.paid_date         AS "paidDate",
         i.amount,
         i.status,
+        i.auto_paid         AS "autoPaid",
+        i.paid_by           AS "paidBy",
+        i.uncollected_reason AS "uncollectedReason",
         i.created_at        AS "createdAt",
         i.updated_at        AS "updatedAt"
       FROM installments i

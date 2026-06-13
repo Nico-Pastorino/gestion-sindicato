@@ -29,6 +29,7 @@ import {
   BenefitStatusBadge,
   BenefitTypeBadge,
   InstallmentStatusBadge,
+  CollectionMethodBadge,
 } from "@/components/ui/badge";
 import { CancelBenefitButton } from "@/components/benefits/cancel-benefit-button";
 import { PayInstallmentButton } from "@/components/benefits/pay-installment-button";
@@ -288,6 +289,7 @@ export default async function BenefitDetailPage({ params }: PageProps) {
                 <TableHead>Monto</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead className="hidden sm:table-cell">Fecha de Pago</TableHead>
+                <TableHead className="hidden sm:table-cell">Cobro</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -312,6 +314,16 @@ export default async function BenefitDetailPage({ params }: PageProps) {
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-sm text-[hsl(var(--muted-foreground))]">
                       {installment.paidDate ? formatDate(installment.paidDate) : "—"}
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      {installment.status === "paid" ? (
+                        <CollectionMethodBadge
+                          autoPaid={installment.autoPaid}
+                          paidBy={installment.paidBy}
+                        />
+                      ) : (
+                        <span className="text-sm text-[hsl(var(--muted-foreground))]">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       {(installment.status === "pending" || installment.status === "overdue") &&

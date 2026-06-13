@@ -21,5 +21,30 @@ export const installmentFiltersSchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 
+// ─── Conciliación masiva: revertir cobro con motivo ──────────────────────────
+
+export const UNCOLLECTED_REASONS = {
+  licencia: "Licencia / sin actividad",
+  renuncia: "Renuncia o desvinculación",
+  error_municipal: "Error de la municipalidad",
+  embargo: "Embargo / retención judicial",
+  otro: "Otro motivo",
+} as const;
+
+export type UncollectedReason = keyof typeof UNCOLLECTED_REASONS;
+
+export const bulkUnpaySchema = z.object({
+  ids: z
+    .array(z.string().uuid("ID de cuota inválido"))
+    .min(1, "Seleccioná al menos una cuota")
+    .max(500, "Demasiadas cuotas en una sola operación"),
+  reason: z.enum(
+    Object.keys(UNCOLLECTED_REASONS) as [UncollectedReason, ...UncollectedReason[]]
+  ),
+  note: z.string().trim().max(500).optional(),
+});
+
+export type BulkUnpayInput = z.infer<typeof bulkUnpaySchema>;
+
 export type PayInstallmentInput = z.infer<typeof payInstallmentSchema>;
 export type InstallmentFiltersInput = z.infer<typeof installmentFiltersSchema>;

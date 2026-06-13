@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ShieldCheck,
   HandCoins,
+  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import type { UserRole } from "@/types/next-auth";
@@ -31,6 +32,7 @@ const navItems: NavItem[] = [
   { href: "/cobranzas",       label: "Cobranzas",      icon: HandCoins },
   { href: "/exportar",        label: "Exportar",       icon: FileDown },
   { href: "/usuarios",        label: "Usuarios",       icon: ShieldCheck, roles: ["admin"] },
+  { href: "/auditoria",       label: "Auditoría",      icon: ScrollText,  roles: ["admin"] },
 ];
 
 

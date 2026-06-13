@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { HandCoins, AlertTriangle, Clock, Users, CheckCircle } from "lucide-react";
+import { HandCoins, AlertTriangle, Clock, Users, CheckCircle, ClipboardCheck, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InstallmentStatusBadge, BenefitTypeBadge } from "@/components/ui/badge";
 import { SensitiveValue, SensitiveText } from "@/components/privacy/sensitive-value";
@@ -45,6 +46,7 @@ interface InstallmentRow {
   dueDate: string;
   amount: string;
   status: string;
+  uncollectedReason: string | null;
 }
 
 export default async function CobranzasPage({ searchParams }: PageProps) {
@@ -77,14 +79,22 @@ export default async function CobranzasPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <HandCoins className="h-6 w-6" />
-          Cobranzas
-        </h1>
-        <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-          Cuotas que todavía no se cobraron. Acá se identifican y se registra el cobro manual.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <HandCoins className="h-6 w-6" />
+            Cobranzas
+          </h1>
+          <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
+            Cuotas que todavía no se cobraron. Acá se identifican y se registra el cobro manual.
+          </p>
+        </div>
+        <Button variant="outline" asChild>
+          <Link href="/cobranzas/conciliacion">
+            <ClipboardCheck className="h-4 w-4" />
+            Conciliación mensual
+          </Link>
+        </Button>
       </div>
 
       {/* Resumen */}
@@ -188,6 +198,12 @@ export default async function CobranzasPage({ searchParams }: PageProps) {
                             {row.affiliateArea && (
                               <span className="block text-xs text-[hsl(var(--muted-foreground))]">
                                 {row.affiliateArea}
+                              </span>
+                            )}
+                            {row.uncollectedReason && (
+                              <span className="mt-0.5 inline-flex items-center gap-1 text-xs text-orange-700">
+                                <RotateCcw className="h-3 w-3" />
+                                {row.uncollectedReason}
                               </span>
                             )}
                           </td>
