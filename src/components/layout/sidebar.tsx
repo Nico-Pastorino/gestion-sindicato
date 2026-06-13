@@ -9,30 +9,41 @@ import {
   FileDown,
   Building2,
   ChevronRight,
+  ShieldCheck,
+  HandCoins,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import type { UserRole } from "@/types/next-auth";
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: string;
+  /** Si está definido, solo estos roles ven el ítem */
+  roles?: UserRole[];
 }
 
 const navItems: NavItem[] = [
   { href: "/dashboard",       label: "Dashboard",      icon: LayoutDashboard },
   { href: "/afiliados",       label: "Afiliados",      icon: Users },
   { href: "/beneficios",      label: "Beneficios",     icon: Gift },
+  { href: "/cobranzas",       label: "Cobranzas",      icon: HandCoins },
   { href: "/exportar",        label: "Exportar",       icon: FileDown },
+  { href: "/usuarios",        label: "Usuarios",       icon: ShieldCheck, roles: ["admin"] },
 ];
 
 
 interface SidebarProps {
   className?: string;
+  role?: UserRole;
 }
 
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className, role = "readonly" }: SidebarProps) {
   const pathname = usePathname();
+  const visibleItems = navItems.filter(
+    (item) => !item.roles || item.roles.includes(role)
+  );
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + "/");
@@ -57,7 +68,7 @@ export function Sidebar({ className }: SidebarProps) {
 
       {/* Nav principal */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-        {navItems.map((item) => (
+        {visibleItems.map((item) => (
           <NavLink key={item.href} item={item} active={isActive(item.href)} />
         ))}
 

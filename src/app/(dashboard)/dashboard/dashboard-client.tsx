@@ -10,6 +10,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { InstallmentStatusBadge, BenefitTypeBadge } from "@/components/ui/badge";
+import { SensitiveText, SensitiveValue } from "@/components/privacy/sensitive-value";
+import { DashboardCharts } from "@/components/dashboard/dashboard-charts";
 import { formatCurrencyARS } from "@/lib/utils/currency";
 import { formatDate } from "@/lib/utils/date";
 import { getBenefitTypeLabel } from "@/lib/utils/benefit-types";
@@ -18,6 +20,7 @@ import type {
   PendingInstallmentRow,
   MonthlyHistoryRow,
   DashboardGlobals,
+  DashboardBreakdowns,
 } from "@/lib/services/dashboard.service";
 
 interface DashboardClientProps {
@@ -28,6 +31,7 @@ interface DashboardClientProps {
   pendingInstallments: PendingInstallmentRow[];
   monthlyHistory: MonthlyHistoryRow[];
   globals: DashboardGlobals;
+  breakdowns: DashboardBreakdowns;
 }
 
 const MONTHS = [
@@ -39,6 +43,7 @@ export function DashboardClient({
   initialMonth, initialYear, periodLabel,
   summary: initSummary, pendingInstallments: initPending,
   monthlyHistory: initHistory, globals,
+  breakdowns: initBreakdowns,
 }: DashboardClientProps) {
   const router = useRouter();
   const [month, setMonth] = useState(initialMonth);
@@ -47,6 +52,7 @@ export function DashboardClient({
   const [summary, setSummary] = useState(initSummary);
   const [pending, setPending] = useState(initPending);
   const [history, setHistory] = useState(initHistory);
+  const [breakdowns, setBreakdowns] = useState(initBreakdowns);
   const [isLoading, startTransition] = useTransition();
 
   const now = new Date();
@@ -61,6 +67,7 @@ export function DashboardClient({
         setSummary(json.summary);
         setPending(json.pendingInstallments);
         setHistory(json.monthlyHistory);
+        setBreakdowns(json.breakdowns);
         setLabel(json.period.label);
       }
     });
@@ -190,7 +197,7 @@ export function DashboardClient({
             icon={<DollarSign className="h-5 w-5 text-blue-600" />}
             iconBg="bg-blue-50"
             label="Capital entregado"
-            value={formatCurrencyARS(summary.capitalDelivered)}
+            value={<SensitiveValue value={formatCurrencyARS(summary.capitalDelivered)} />}
             sub={`${summary.benefitsCount} beneficio${summary.benefitsCount !== 1 ? "s" : ""} otorgado${summary.benefitsCount !== 1 ? "s" : ""}`}
             description="Monto total entregado en el período"
           />
@@ -199,7 +206,7 @@ export function DashboardClient({
             icon={<TrendingUp className="h-5 w-5 text-purple-600" />}
             iconBg="bg-purple-50"
             label="Total a cobrar"
-            value={formatCurrencyARS(summary.totalToCollect)}
+            value={<SensitiveValue value={formatCurrencyARS(summary.totalToCollect)} />}
             sub="capital + intereses"
             description="Suma de todas las cuotas generadas"
           />
@@ -208,7 +215,7 @@ export function DashboardClient({
             icon={<CheckCircle className="h-5 w-5 text-green-600" />}
             iconBg="bg-green-50"
             label="Cobrado hasta ahora"
-            value={formatCurrencyARS(summary.paidAmount)}
+            value={<SensitiveValue value={formatCurrencyARS(summary.paidAmount)} />}
             sub={`${summary.paidInstallmentsCount} cuota${summary.paidInstallmentsCount !== 1 ? "s" : ""} pagada${summary.paidInstallmentsCount !== 1 ? "s" : ""}`}
             description="Cuotas efectivamente cobradas"
           />
@@ -217,7 +224,7 @@ export function DashboardClient({
             icon={<Clock className="h-5 w-5 text-yellow-600" />}
             iconBg="bg-yellow-50"
             label="Falta cobrar"
-            value={formatCurrencyARS(summary.pendingToCollect)}
+            value={<SensitiveValue value={formatCurrencyARS(summary.pendingToCollect)} />}
             sub={`${summary.pendingInstallmentsCount} cuota${summary.pendingInstallmentsCount !== 1 ? "s" : ""} pendiente${summary.pendingInstallmentsCount !== 1 ? "s" : ""}`}
             description="Cuotas pendientes o vencidas"
             alert={summary.overdueInstallmentsCount > 0}
@@ -227,7 +234,7 @@ export function DashboardClient({
             icon={<TrendingUp className="h-5 w-5 text-orange-600" />}
             iconBg="bg-orange-50"
             label="Ganancia estimada"
-            value={formatCurrencyARS(summary.estimatedProfit)}
+            value={<SensitiveValue value={formatCurrencyARS(summary.estimatedProfit)} />}
             sub="interés total del período"
             description="Ganancia por intereses aplicados"
           />
@@ -236,12 +243,15 @@ export function DashboardClient({
             icon={<DollarSign className="h-5 w-5 text-teal-600" />}
             iconBg="bg-teal-50"
             label="Ganancia pendiente"
-            value={formatCurrencyARS(summary.pendingProfit)}
+            value={<SensitiveValue value={formatCurrencyARS(summary.pendingProfit)} />}
             sub="interés aún no cobrado"
             description="Parte del interés que falta cobrar"
           />
         </div>
       </section>
+
+      {/* ── 1b. Gráficos del período ── */}
+      <DashboardCharts breakdowns={breakdowns} history={history} />
 
       {/* ── 2. Ganancia del sindicato ── */}
       {summary.estimatedProfit > 0 && (
@@ -256,15 +266,15 @@ export function DashboardClient({
             <div className="grid grid-cols-3 gap-3 text-center">
               <div>
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">Total estimada</p>
-                <p className="text-base font-bold">{formatCurrencyARS(summary.estimatedProfit)}</p>
+                <p className="text-base font-bold"><SensitiveValue value={formatCurrencyARS(summary.estimatedProfit)} /></p>
               </div>
               <div>
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">Cobrada</p>
-                <p className="text-base font-bold text-green-700">{formatCurrencyARS(summary.collectedProfit)}</p>
+                <p className="text-base font-bold text-green-700"><SensitiveValue value={formatCurrencyARS(summary.collectedProfit)} /></p>
               </div>
               <div>
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">Pendiente</p>
-                <p className="text-base font-bold text-yellow-700">{formatCurrencyARS(summary.pendingProfit)}</p>
+                <p className="text-base font-bold text-yellow-700"><SensitiveValue value={formatCurrencyARS(summary.pendingProfit)} /></p>
               </div>
             </div>
 
@@ -332,7 +342,9 @@ export function DashboardClient({
                     {pending.map((row) => (
                       <tr key={row.id} className={`hover:bg-[hsl(var(--accent))]/40 transition-colors ${row.status === "overdue" ? "bg-red-50/40" : ""}`}>
                         <td className="py-2.5 px-4 font-medium">{row.fullName}</td>
-                        <td className="py-2.5 px-3 text-[hsl(var(--muted-foreground))] hidden sm:table-cell">{row.dni}</td>
+                        <td className="py-2.5 px-3 text-[hsl(var(--muted-foreground))] hidden sm:table-cell">
+                          <SensitiveText value={row.dni} type="dni" />
+                        </td>
                         <td className="py-2.5 px-3 text-[hsl(var(--muted-foreground))] hidden lg:table-cell">{row.legajo ?? "—"}</td>
                         <td className="py-2.5 px-3 hidden md:table-cell">
                           <BenefitTypeBadge type={row.benefitType as "ayuda_economica" | "supermercado" | "otro"} />
@@ -340,7 +352,9 @@ export function DashboardClient({
                         <td className="py-2.5 px-3 text-[hsl(var(--muted-foreground))]">
                           {row.installmentNumber}/{row.totalInstallments}
                         </td>
-                        <td className="py-2.5 px-3 text-right font-semibold">{formatCurrencyARS(row.amount)}</td>
+                        <td className="py-2.5 px-3 text-right font-semibold">
+                          <SensitiveValue value={formatCurrencyARS(row.amount)} />
+                        </td>
                         <td className="py-2.5 px-3 hidden sm:table-cell text-[hsl(var(--muted-foreground))]">{formatDate(row.dueDate)}</td>
                         <td className="py-2.5 px-3">
                           <InstallmentStatusBadge status={row.status as "pending" | "overdue" | "paid" | "cancelled"} />
@@ -395,11 +409,11 @@ export function DashboardClient({
                         {isSelected && <span className="ml-2 text-xs text-blue-600 font-normal">← actual</span>}
                       </td>
                       <td className="py-2.5 px-3 text-right text-[hsl(var(--muted-foreground))]">{row.benefitsCount}</td>
-                      <td className="py-2.5 px-3 text-right font-medium">{formatCurrencyARS(row.capitalDelivered)}</td>
-                      <td className="py-2.5 px-3 text-right text-orange-600 hidden md:table-cell">{formatCurrencyARS(row.estimatedProfit)}</td>
-                      <td className="py-2.5 px-3 text-right text-green-700 hidden md:table-cell">{formatCurrencyARS(row.collectedProfit)}</td>
-                      <td className="py-2.5 px-3 text-right text-yellow-700 hidden lg:table-cell">{formatCurrencyARS(row.pendingProfit)}</td>
-                      <td className="py-2.5 px-3 text-right font-semibold">{formatCurrencyARS(row.pendingToCollect)}</td>
+                      <td className="py-2.5 px-3 text-right font-medium"><SensitiveValue value={formatCurrencyARS(row.capitalDelivered)} /></td>
+                      <td className="py-2.5 px-3 text-right text-orange-600 hidden md:table-cell"><SensitiveValue value={formatCurrencyARS(row.estimatedProfit)} /></td>
+                      <td className="py-2.5 px-3 text-right text-green-700 hidden md:table-cell"><SensitiveValue value={formatCurrencyARS(row.collectedProfit)} /></td>
+                      <td className="py-2.5 px-3 text-right text-yellow-700 hidden lg:table-cell"><SensitiveValue value={formatCurrencyARS(row.pendingProfit)} /></td>
+                      <td className="py-2.5 px-3 text-right font-semibold"><SensitiveValue value={formatCurrencyARS(row.pendingToCollect)} /></td>
                     </tr>
                   );
                 })}
@@ -421,7 +435,7 @@ function ClickCard({
   href, icon, iconBg, label, value, sub, description, alert = false,
 }: {
   href: string; icon: React.ReactNode; iconBg: string;
-  label: string; value: string; sub?: string;
+  label: string; value: React.ReactNode; sub?: string;
   description?: string; alert?: boolean;
 }) {
   return (

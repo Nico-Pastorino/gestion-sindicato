@@ -4,6 +4,7 @@ import {
   updateAffiliate,
 } from "@/lib/services/affiliates.service";
 import { updateAffiliateSchema } from "@/lib/validations/affiliate.schema";
+import { requireSession, requireRole, authErrorResponse } from "@/lib/auth/guards";
 import { ZodError } from "zod";
 
 export async function GET(
@@ -11,6 +12,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireSession();
     const { id } = await params;
     const affiliate = await getAffiliateById(id);
 
@@ -23,6 +25,8 @@ export async function GET(
 
     return NextResponse.json({ data: affiliate });
   } catch (error) {
+    const authRes = authErrorResponse(error);
+    if (authRes) return authRes;
     console.error("[GET /api/affiliates/[id]]", error);
     return NextResponse.json(
       { error: { code: "INTERNAL_ERROR", message: "Error interno del servidor" } },
@@ -36,12 +40,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await requireRole("admin", "operator");
     const { id } = await params;
     const body = await req.json();
     const input = updateAffiliateSchema.parse({ ...body, id });
-    const updated = await updateAffiliate(input);
+    const updated = await updateAffiliate(input, session.user.id);
     return NextResponse.json({ data: updated });
   } catch (error) {
+    const authRes = authErrorResponse(error);
+    if (authRes) return authRes;
     if (error instanceof ZodError) {
       return NextResponse.json(
         { error: { code: "VALIDATION_ERROR", message: "Datos inválidos", details: error.issues } },

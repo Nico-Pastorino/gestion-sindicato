@@ -13,6 +13,10 @@ import {
   TrendingUp,
   Hash,
   AlertTriangle,
+  BriefcaseBusiness,
+  FileCheck2,
+  Mail,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +37,7 @@ import {
   InstallmentStatusBadge,
 } from "@/components/ui/badge";
 import { CreditBar } from "@/components/shared/credit-bar";
+import { SensitiveText, SensitiveValue } from "@/components/privacy/sensitive-value";
 import { UnpayInstallmentButton } from "@/components/benefits/unpay-installment-button";
 import { formatCurrency } from "@/lib/utils/credit";
 import { formatDate } from "@/lib/utils/date";
@@ -98,7 +103,7 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
           <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-[hsl(var(--muted-foreground))]">
             <span className="flex items-center gap-1">
               <CreditCard className="h-3.5 w-3.5" />
-              DNI {data.dni}
+              <SensitiveText value={data.dni} type="dni" prefix="DNI " />
             </span>
             {data.legajo && (
               <span className="flex items-center gap-1">
@@ -115,7 +120,13 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
             {data.phone && (
               <span className="flex items-center gap-1">
                 <Phone className="h-3.5 w-3.5" />
-                {data.phone}
+                <SensitiveText value={data.phone} type="phone" />
+              </span>
+            )}
+            {data.email && (
+              <span className="flex items-center gap-1">
+                <Mail className="h-3.5 w-3.5" />
+                <SensitiveText value={data.email} type="email" />
               </span>
             )}
           </div>
@@ -158,7 +169,7 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
               Salario Bruto
             </p>
             <p className="text-xl font-bold mt-1">
-              {hasSalary ? formatCurrency(data.grossSalary!) : (
+              {hasSalary ? <SensitiveValue value={formatCurrency(data.grossSalary!)} /> : (
                 <span className="text-[hsl(var(--muted-foreground))] text-base">Pendiente</span>
               )}
             </p>
@@ -171,7 +182,7 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
             </p>
             <p className="text-xl font-bold mt-1 text-blue-600">
               {credit?.creditLimit30 != null
-                ? formatCurrency(credit.creditLimit30)
+                ? <SensitiveValue value={formatCurrency(credit.creditLimit30)} />
                 : <span className="text-[hsl(var(--muted-foreground))] text-base">Pendiente</span>}
             </p>
           </CardContent>
@@ -182,7 +193,7 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
               Descuentos Activos
             </p>
             <p className="text-xl font-bold mt-1 text-yellow-600">
-              {formatCurrency(credit?.activeDiscounts ?? "0")}
+              <SensitiveValue value={formatCurrency(credit?.activeDiscounts ?? "0")} />
             </p>
           </CardContent>
         </Card>
@@ -193,7 +204,7 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
             </p>
             <p className="text-xl font-bold mt-1 text-green-600">
               {credit?.availableAmount != null
-                ? formatCurrency(credit.availableAmount)
+                ? <SensitiveValue value={formatCurrency(credit.availableAmount)} />
                 : <span className="text-[hsl(var(--muted-foreground))] text-base">Pendiente</span>}
             </p>
           </CardContent>
@@ -214,6 +225,82 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
         </Card>
       )}
 
+      {/* Ficha interna */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Phone className="h-4 w-4" />
+              Contacto
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <InfoRow label="Teléfono" value={<SensitiveText value={data.phone} type="phone" />} />
+            <InfoRow label="Alternativo" value={<SensitiveText value={data.alternatePhone} type="phone" />} />
+            <InfoRow label="Correo" value={<SensitiveText value={data.email} type="email" />} />
+            <InfoRow label="CUIL/CUIT" value={<SensitiveText value={data.cuil} type="dni" />} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Domicilio
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <InfoRow label="Calle" value={[data.streetAddress, data.addressNumber].filter(Boolean).join(" ") || "—"} />
+            <InfoRow label="Barrio" value={data.neighborhood ?? "—"} />
+            <InfoRow label="Localidad" value={data.city ?? "—"} />
+            <InfoRow label="Provincia / CP" value={[data.province, data.postalCode].filter(Boolean).join(" / ") || "—"} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <BriefcaseBusiness className="h-4 w-4" />
+              Laboral
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <InfoRow label="Área / sector" value={[data.area, data.sector].filter(Boolean).join(" / ") || "—"} />
+            <InfoRow label="Cargo" value={data.position ?? "—"} />
+            <InfoRow label="Vínculo" value={getEmploymentTypeLabel(data.employmentType)} />
+            <InfoRow label="Ingreso" value={data.hireDate ? formatDate(data.hireDate) : "—"} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Control interno
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
+          <InfoRow label="Afiliado desde" value={data.affiliationDate ? formatDate(data.affiliationDate) : "—"} />
+          <InfoRow
+            label="Documentación"
+            value={
+              <span className="inline-flex items-center gap-1">
+                <FileCheck2 className="h-3.5 w-3.5" />
+                {getDocumentationLabel(data.documentationStatus)}
+              </span>
+            }
+          />
+          <InfoRow label="Emergencia" value={data.emergencyContactName ?? "—"} />
+          <InfoRow label="Vínculo" value={data.emergencyContactRelation ?? "—"} />
+          <InfoRow label="Tel. emergencia" value={<SensitiveText value={data.emergencyContactPhone} type="phone" />} />
+          <InfoRow
+            label="Observaciones privadas"
+            value={data.privateNotes ? <SensitiveValue value={data.privateNotes} /> : "—"}
+          />
+        </CardContent>
+      </Card>
+
       {/* Resumen financiero agregado */}
       {nonCancelledBenefits.length > 0 && (
         <Card>
@@ -225,9 +312,9 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <AggMetric label="Capital entregado" value={formatCurrency(agg.principalAmount)} />
-              <AggMetric label="Total a devolver" value={formatCurrency(agg.totalRepaymentAmount)} />
-              <AggMetric label="Ganancia total" value={formatCurrency(agg.interestAmount)} accent="orange" />
+              <AggMetric label="Capital entregado" value={<SensitiveValue value={formatCurrency(agg.principalAmount)} />} />
+              <AggMetric label="Total a devolver" value={<SensitiveValue value={formatCurrency(agg.totalRepaymentAmount)} />} />
+              <AggMetric label="Ganancia total" value={<SensitiveValue value={formatCurrency(agg.interestAmount)} />} accent="orange" />
               <AggMetric
                 label="Beneficios activos / finalizados"
                 value={`${activeBenefits.length} / ${finishedBenefits.length}`}
@@ -235,10 +322,10 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
             </div>
             <Separator className="my-4" />
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <AggMetric label="Cobrado" value={formatCurrency(agg.paidAmount)} accent="green" />
-              <AggMetric label="Pendiente de cobro" value={formatCurrency(agg.pendingAmount)} accent="yellow" />
-              <AggMetric label="Ganancia cobrada" value={formatCurrency(agg.earnedInterestAmount)} accent="green" />
-              <AggMetric label="Ganancia pendiente" value={formatCurrency(agg.pendingInterestAmount)} accent="yellow" />
+              <AggMetric label="Cobrado" value={<SensitiveValue value={formatCurrency(agg.paidAmount)} />} accent="green" />
+              <AggMetric label="Pendiente de cobro" value={<SensitiveValue value={formatCurrency(agg.pendingAmount)} />} accent="yellow" />
+              <AggMetric label="Ganancia cobrada" value={<SensitiveValue value={formatCurrency(agg.earnedInterestAmount)} />} accent="green" />
+              <AggMetric label="Ganancia pendiente" value={<SensitiveValue value={formatCurrency(agg.pendingInterestAmount)} />} accent="yellow" />
             </div>
           </CardContent>
         </Card>
@@ -315,8 +402,12 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
                           <TableCell>
                             <BenefitTypeBadge type={b.type as "ayuda_economica" | "supermercado" | "otro"} />
                           </TableCell>
-                          <TableCell className="hidden sm:table-cell text-sm">{formatCurrency(b.totalAmount)}</TableCell>
-                          <TableCell className="text-sm font-medium">{formatCurrency(b.installmentAmount)}</TableCell>
+                          <TableCell className="hidden sm:table-cell text-sm">
+                            <SensitiveValue value={formatCurrency(b.totalAmount)} />
+                          </TableCell>
+                          <TableCell className="text-sm font-medium">
+                            <SensitiveValue value={formatCurrency(b.installmentAmount)} />
+                          </TableCell>
                           <TableCell className="hidden md:table-cell text-sm text-[hsl(var(--muted-foreground))]">
                             {paidCount}/{b.installmentsCount}
                           </TableCell>
@@ -410,11 +501,11 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
                             </span>
                           </div>
                           <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1">
-                            {formatDate(b.date)} · {b.installmentsCount} cuota{b.installmentsCount !== 1 ? "s" : ""} de {formatCurrency(b.installmentAmount)}
+                            {formatDate(b.date)} · {b.installmentsCount} cuota{b.installmentsCount !== 1 ? "s" : ""} de <SensitiveValue value={formatCurrency(b.installmentAmount)} />
                           </p>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-sm font-semibold">{formatCurrency(b.totalAmount)}</span>
+                          <span className="text-sm font-semibold"><SensitiveValue value={formatCurrency(b.totalAmount)} /></span>
                           <BenefitStatusBadge status={b.status as "active" | "cancelled" | "finished"} />
                           <Button variant="ghost" size="sm" asChild>
                             <Link href={`/beneficios/${b.id}`}>Ver</Link>
@@ -432,7 +523,7 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
   );
 }
 
-function AggMetric({ label, value, accent }: { label: string; value: string; accent?: "green" | "yellow" | "orange" }) {
+function AggMetric({ label, value, accent }: { label: string; value: React.ReactNode; accent?: "green" | "yellow" | "orange" }) {
   const colors = { green: "text-green-700", yellow: "text-yellow-700", orange: "text-orange-600" };
   return (
     <div className="space-y-0.5">
@@ -440,6 +531,34 @@ function AggMetric({ label, value, accent }: { label: string; value: string; acc
       <p className={`text-sm font-semibold ${accent ? colors[accent] : ""}`}>{value}</p>
     </div>
   );
+}
+
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">{label}</p>
+      <p className="mt-0.5 font-medium text-[hsl(var(--foreground))]">{value}</p>
+    </div>
+  );
+}
+
+function getEmploymentTypeLabel(type: string | null) {
+  const labels: Record<string, string> = {
+    planta: "Planta permanente",
+    contratado: "Contratado",
+    jubilado: "Jubilado",
+    otro: "Otro",
+  };
+  return type ? labels[type] ?? type : "—";
+}
+
+function getDocumentationLabel(status: string) {
+  const labels: Record<string, string> = {
+    complete: "Completa",
+    pending: "Pendiente",
+    missing: "Faltante",
+  };
+  return labels[status] ?? status;
 }
 
 function EmptyState({ icon, title, description, action }: {
@@ -494,7 +613,9 @@ function InstallmentsTable({ installments }: { installments: InstallmentWithBene
             <TableCell className="hidden md:table-cell text-sm">
               {i.paidDate ? formatDate(i.paidDate) : "—"}
             </TableCell>
-            <TableCell className="text-sm font-semibold">{formatCurrency(i.amount)}</TableCell>
+            <TableCell className="text-sm font-semibold">
+              <SensitiveValue value={formatCurrency(i.amount)} />
+            </TableCell>
             <TableCell>
               <InstallmentStatusBadge status={i.status as "pending" | "paid" | "overdue" | "cancelled"} />
             </TableCell>

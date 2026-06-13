@@ -11,10 +11,12 @@ export const payInstallmentSchema = z.object({
 export const installmentFiltersSchema = z.object({
   affiliateId: z.string().uuid().optional(),
   benefitId: z.string().uuid().optional(),
-  status: z.enum(["pending", "paid", "overdue", "cancelled"]).optional(),
+  // "unpaid" agrupa pending + overdue (cuotas no cobradas)
+  status: z.enum(["pending", "paid", "overdue", "cancelled", "unpaid"]).optional(),
   month: z.coerce.number().int().min(1).max(12).optional(),
   year: z.coerce.number().int().min(2000).max(2100).optional(),
   area: z.string().trim().optional(),
+  search: z.string().trim().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });

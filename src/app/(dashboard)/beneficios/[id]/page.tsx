@@ -33,6 +33,7 @@ import {
 import { CancelBenefitButton } from "@/components/benefits/cancel-benefit-button";
 import { PayInstallmentButton } from "@/components/benefits/pay-installment-button";
 import { UnpayInstallmentButton } from "@/components/benefits/unpay-installment-button";
+import { SensitiveText, SensitiveValue } from "@/components/privacy/sensitive-value";
 import { formatCurrency } from "@/lib/utils/credit";
 import { formatDate } from "@/lib/utils/date";
 import { getBenefitById } from "@/lib/services/benefits.service";
@@ -126,14 +127,14 @@ export default async function BenefitDetailPage({ params }: PageProps) {
                 {benefit.commerce ?? "—"}
               </DataItem>
               <DataItem label="Capital otorgado" icon={<CreditCard className="h-3.5 w-3.5" />}>
-                <span className="font-semibold">{formatCurrency(benefit.totalAmount)}</span>
+                <span className="font-semibold"><SensitiveValue value={formatCurrency(benefit.totalAmount)} /></span>
               </DataItem>
               <DataItem label="Cuotas" icon={<Hash className="h-3.5 w-3.5" />}>
                 {benefit.installmentsCount}
               </DataItem>
               <DataItem label="Por cuota">
                 <span className="font-semibold text-blue-600">
-                  {formatCurrency(benefit.installmentAmount)}
+                  <SensitiveValue value={formatCurrency(benefit.installmentAmount)} />
                 </span>
               </DataItem>
             </div>
@@ -170,7 +171,7 @@ export default async function BenefitDetailPage({ params }: PageProps) {
                     {benefit.affiliate.fullName}
                   </Link>
                   <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
-                    DNI {benefit.affiliate.dni}
+                    <SensitiveText value={benefit.affiliate.dni} type="dni" prefix="DNI " />
                   </p>
                 </div>
                 <Button variant="outline" size="sm" className="w-full" asChild>
@@ -196,38 +197,38 @@ export default async function BenefitDetailPage({ params }: PageProps) {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <FinMetric label="Capital otorgado" value={formatCurrency(fin.principalAmount)} />
-            <FinMetric label="Total a devolver" value={formatCurrency(fin.totalRepaymentAmount)} />
+            <FinMetric label="Capital otorgado" value={<SensitiveValue value={formatCurrency(fin.principalAmount)} />} />
+            <FinMetric label="Total a devolver" value={<SensitiveValue value={formatCurrency(fin.totalRepaymentAmount)} />} />
             <FinMetric
               label="Interés total"
-              value={formatCurrency(fin.interestAmount)}
+              value={<SensitiveValue value={formatCurrency(fin.interestAmount)} />}
               sub={fin.interestAmount > 0 ? `${fin.interestRate.toFixed(2)}%` : undefined}
               accent={fin.interestAmount > 0 ? "orange" : undefined}
             />
-            <FinMetric label="Interés por cuota" value={formatCurrency(fin.interestPerInstallment)} />
+            <FinMetric label="Interés por cuota" value={<SensitiveValue value={formatCurrency(fin.interestPerInstallment)} />} />
           </div>
           <Separator className="my-4" />
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <FinMetric
               label="Cobrado hasta ahora"
-              value={formatCurrency(fin.paidAmount)}
+              value={<SensitiveValue value={formatCurrency(fin.paidAmount)} />}
               sub={`${fin.paidInstallmentsCount} cuota${fin.paidInstallmentsCount !== 1 ? "s" : ""}`}
               accent="green"
             />
             <FinMetric
               label="Pendiente de cobro"
-              value={formatCurrency(fin.pendingAmount)}
+              value={<SensitiveValue value={formatCurrency(fin.pendingAmount)} />}
               sub={`${fin.pendingInstallmentsCount} cuota${fin.pendingInstallmentsCount !== 1 ? "s" : ""}`}
               accent={fin.pendingInstallmentsCount > 0 ? "yellow" : undefined}
             />
             <FinMetric
               label="Ganancia cobrada"
-              value={formatCurrency(fin.earnedInterestAmount)}
+              value={<SensitiveValue value={formatCurrency(fin.earnedInterestAmount)} />}
               accent="green"
             />
             <FinMetric
               label="Ganancia pendiente"
-              value={formatCurrency(fin.pendingInterestAmount)}
+              value={<SensitiveValue value={formatCurrency(fin.pendingInterestAmount)} />}
               accent={fin.pendingInterestAmount > 0 ? "yellow" : undefined}
             />
           </div>
@@ -244,7 +245,7 @@ export default async function BenefitDetailPage({ params }: PageProps) {
             <div>
               <p className="text-xs text-[hsl(var(--muted-foreground))]">Pagadas</p>
               <p className="text-lg font-bold text-green-700">{paid.length}</p>
-              <p className="text-xs text-green-600">{formatCurrency(fin.paidAmount)}</p>
+              <p className="text-xs text-green-600"><SensitiveValue value={formatCurrency(fin.paidAmount)} /></p>
             </div>
           </CardContent>
         </Card>
@@ -256,7 +257,7 @@ export default async function BenefitDetailPage({ params }: PageProps) {
             <div>
               <p className="text-xs text-[hsl(var(--muted-foreground))]">Pendientes</p>
               <p className="text-lg font-bold text-yellow-700">{pending.length}</p>
-              <p className="text-xs text-yellow-600">{formatCurrency(fin.pendingAmount)}</p>
+              <p className="text-xs text-yellow-600"><SensitiveValue value={formatCurrency(fin.pendingAmount)} /></p>
             </div>
           </CardContent>
         </Card>
@@ -302,7 +303,7 @@ export default async function BenefitDetailPage({ params }: PageProps) {
                       {formatDate(installment.dueDate)}
                     </TableCell>
                     <TableCell className="text-sm font-semibold">
-                      {formatCurrency(installment.amount)}
+                      <SensitiveValue value={formatCurrency(installment.amount)} />
                     </TableCell>
                     <TableCell>
                       <InstallmentStatusBadge
@@ -370,7 +371,7 @@ function FinMetric({
   accent,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   sub?: string;
   accent?: "green" | "yellow" | "orange";
 }) {

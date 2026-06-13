@@ -6,6 +6,8 @@ import Link from "next/link";
 import { ChevronLeft, RefreshCw, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InstallmentStatusBadge, BenefitStatusBadge, BenefitTypeBadge } from "@/components/ui/badge";
+import { SensitiveText, SensitiveValue } from "@/components/privacy/sensitive-value";
+import { SimpleDonut } from "@/components/charts/simple-donut";
 import { formatCurrencyARS } from "@/lib/utils/currency";
 import { formatDate } from "@/lib/utils/date";
 import type {
@@ -106,7 +108,7 @@ function SummaryCard({ label, value, sub, accent }: { label: string; value: stri
   return (
     <div className="rounded-xl border bg-[hsl(var(--card))] p-4">
       <p className="text-xs font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wide">{label}</p>
-      <p className={`text-xl font-bold mt-1 ${accent ? colors[accent] : ""}`}>{value}</p>
+      <p className={`text-xl font-bold mt-1 ${accent ? colors[accent] : ""}`}><SensitiveValue value={value} /></p>
       {sub && <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">{sub}</p>}
     </div>
   );
@@ -121,6 +123,36 @@ function EmptyState({ message }: { message: string }) {
   );
 }
 
+const TYPE_LABEL_COLORS: Record<string, string> = {
+  "Ayuda Económica": "#2563eb",
+  "Comercio": "#9333ea",
+  "Otro": "#64748b",
+};
+const FALLBACK_COLORS = ["#0d9488", "#ea580c", "#ca8a04"];
+
+/** Torta + barras por tipo de beneficio, lado a lado */
+function ByTypeSection({ title, items }: { title: string; items: { label: string; amount: number; count: number }[] }) {
+  if (items.length === 0) return null;
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm">{title}</CardTitle></CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:items-center">
+          <SimpleDonut
+            data={items.map((item, i) => ({
+              name: item.label,
+              value: item.amount,
+              count: item.count,
+              color: TYPE_LABEL_COLORS[item.label] ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length],
+            }))}
+          />
+          <ByTypeChart items={items} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ByTypeChart({ items }: { items: { label: string; amount: number; count: number }[] }) {
   const max = Math.max(...items.map(i => i.amount), 1);
   return (
@@ -130,7 +162,7 @@ function ByTypeChart({ items }: { items: { label: string; amount: number; count:
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium">{item.label}</span>
             <span className="text-[hsl(var(--muted-foreground))]">
-              {formatCurrencyARS(item.amount)} · {item.count} {item.count === 1 ? "beneficio" : "beneficios"}
+              <SensitiveValue value={formatCurrencyARS(item.amount)} /> · {item.count} {item.count === 1 ? "beneficio" : "beneficios"}
             </span>
           </div>
           <div className="h-2 w-full rounded-full bg-[hsl(var(--muted))]">
@@ -160,12 +192,7 @@ function CapitalEntregadoView({ data, month, year }: { data: CapitalEntregadoDat
         <SummaryCard label="Tipos" value={String(data.byType.length)} sub="distintos" />
       </div>
 
-      {data.byType.length > 1 && (
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Por tipo de beneficio</CardTitle></CardHeader>
-          <CardContent><ByTypeChart items={data.byType} /></CardContent>
-        </Card>
-      )}
+      <ByTypeSection title="Por tipo de beneficio" items={data.byType} />
 
       <Card>
         <CardHeader className="pb-2">
@@ -189,15 +216,15 @@ function CapitalEntregadoView({ data, month, year }: { data: CapitalEntregadoDat
                 <tr key={r.id} className="hover:bg-[hsl(var(--accent))]/40 transition-colors">
                   <td className="py-2.5 px-4 text-[hsl(var(--muted-foreground))]">{formatDate(r.date)}</td>
                   <td className="py-2.5 px-3 font-medium">{r.fullName}</td>
-                  <td className="py-2.5 px-3 hidden sm:table-cell text-[hsl(var(--muted-foreground))]">{r.dni}</td>
+                  <td className="py-2.5 px-3 hidden sm:table-cell text-[hsl(var(--muted-foreground))]"><SensitiveText value={r.dni} type="dni" /></td>
                   <td className="py-2.5 px-3 hidden md:table-cell">
                     <BenefitTypeBadge type={r.type as "ayuda_economica" | "supermercado" | "otro"} />
                   </td>
-                  <td className="py-2.5 px-3 text-right font-semibold">{formatCurrencyARS(r.totalAmount)}</td>
+                  <td className="py-2.5 px-3 text-right font-semibold"><SensitiveValue value={formatCurrencyARS(r.totalAmount)} /></td>
                   <td className="py-2.5 px-3 text-center hidden sm:table-cell text-[hsl(var(--muted-foreground))]">
                     {r.paidCount}/{r.installmentsCount}
                   </td>
-                  <td className="py-2.5 px-3 text-right hidden md:table-cell">{formatCurrencyARS(r.installmentAmount)}</td>
+                  <td className="py-2.5 px-3 text-right hidden md:table-cell"><SensitiveValue value={formatCurrencyARS(r.installmentAmount)} /></td>
                   <td className="py-2.5 px-3">
                     <BenefitStatusBadge status={r.status as "active" | "finished" | "cancelled"} />
                   </td>
@@ -229,12 +256,7 @@ function TotalACobrarView({ data, month, year }: { data: TotalACobrarData; month
         <SummaryCard label="Cuotas generadas" value={String(data.installmentsCount)} sub={`${data.benefitsCount} beneficios`} />
       </div>
 
-      {data.byType.length > 1 && (
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Por tipo de beneficio</CardTitle></CardHeader>
-          <CardContent><ByTypeChart items={data.byType} /></CardContent>
-        </Card>
-      )}
+      <ByTypeSection title="Por tipo de beneficio" items={data.byType} />
 
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm">Cuotas del período — {data.installmentsCount}</CardTitle></CardHeader>
@@ -253,12 +275,12 @@ function TotalACobrarView({ data, month, year }: { data: TotalACobrarData; month
               {data.rows.map((r) => (
                 <tr key={r.id} className="hover:bg-[hsl(var(--accent))]/40 transition-colors">
                   <td className="py-2.5 px-4 font-medium">{r.fullName}</td>
-                  <td className="py-2.5 px-3 hidden sm:table-cell text-[hsl(var(--muted-foreground))]">{r.dni}</td>
+                  <td className="py-2.5 px-3 hidden sm:table-cell text-[hsl(var(--muted-foreground))]"><SensitiveText value={r.dni} type="dni" /></td>
                   <td className="py-2.5 px-3 hidden md:table-cell">
                     <BenefitTypeBadge type={r.type as "ayuda_economica" | "supermercado" | "otro"} />
                   </td>
                   <td className="py-2.5 px-3 text-center text-[hsl(var(--muted-foreground))]">{r.installmentNumber}/{r.totalInstallments}</td>
-                  <td className="py-2.5 px-3 text-right font-semibold">{formatCurrencyARS(r.amount)}</td>
+                  <td className="py-2.5 px-3 text-right font-semibold"><SensitiveValue value={formatCurrencyARS(r.amount)} /></td>
                   <td className="py-2.5 px-3 hidden sm:table-cell text-[hsl(var(--muted-foreground))]">{formatDate(r.dueDate)}</td>
                   <td className="py-2.5 px-3">
                     <InstallmentStatusBadge status={r.status as "pending" | "paid" | "overdue" | "cancelled"} />
@@ -288,12 +310,7 @@ function CobradoView({ data, month, year }: { data: CobradoData; month: number; 
         <SummaryCard label="Último cobro" value={data.lastPaymentDate ? formatDate(data.lastPaymentDate) : "—"} />
       </div>
 
-      {data.byType.length > 1 && (
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Cobrado por tipo</CardTitle></CardHeader>
-          <CardContent><ByTypeChart items={data.byType} /></CardContent>
-        </Card>
-      )}
+      <ByTypeSection title="Cobrado por tipo" items={data.byType} />
 
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm">Cuotas cobradas — {data.installmentsCount}</CardTitle></CardHeader>
@@ -313,13 +330,13 @@ function CobradoView({ data, month, year }: { data: CobradoData; month: number; 
                 <tr key={r.id} className="hover:bg-[hsl(var(--accent))]/40 transition-colors">
                   <td className="py-2.5 px-4 text-[hsl(var(--muted-foreground))]">{r.paidDate ? formatDate(r.paidDate) : "—"}</td>
                   <td className="py-2.5 px-3 font-medium">{r.fullName}</td>
-                  <td className="py-2.5 px-3 hidden sm:table-cell text-[hsl(var(--muted-foreground))]">{r.dni}</td>
+                  <td className="py-2.5 px-3 hidden sm:table-cell text-[hsl(var(--muted-foreground))]"><SensitiveText value={r.dni} type="dni" /></td>
                   <td className="py-2.5 px-3 hidden md:table-cell">
                     <BenefitTypeBadge type={r.type as "ayuda_economica" | "supermercado" | "otro"} />
                   </td>
                   <td className="py-2.5 px-3 text-center text-[hsl(var(--muted-foreground))]">{r.installmentNumber}/{r.totalInstallments}</td>
-                  <td className="py-2.5 px-3 text-right font-semibold text-green-700">{formatCurrencyARS(r.amount)}</td>
-                  <td className="py-2.5 px-3 text-right hidden md:table-cell text-orange-600">{formatCurrencyARS(r.earnedInterest)}</td>
+                  <td className="py-2.5 px-3 text-right font-semibold text-green-700"><SensitiveValue value={formatCurrencyARS(r.amount)} /></td>
+                  <td className="py-2.5 px-3 text-right hidden md:table-cell text-orange-600"><SensitiveValue value={formatCurrencyARS(r.earnedInterest)} /></td>
                 </tr>
               ))}
             </tbody>
@@ -355,7 +372,7 @@ function FaltaCobrarView({ data, month, year }: { data: FaltaCobrarData; month: 
             <p className="text-xs font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wide mb-2">
               Interés pendiente de cobrar
             </p>
-            <p className="text-lg font-bold text-yellow-700">{formatCurrencyARS(data.pendingInterest)}</p>
+            <p className="text-lg font-bold text-yellow-700"><SensitiveValue value={formatCurrencyARS(data.pendingInterest)} /></p>
             <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1">
               Este es el interés incluido en las cuotas que todavía no se cobraron.
             </p>
@@ -363,12 +380,7 @@ function FaltaCobrarView({ data, month, year }: { data: FaltaCobrarData; month: 
         </Card>
       )}
 
-      {data.byType.length > 1 && (
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Pendiente por tipo</CardTitle></CardHeader>
-          <CardContent><ByTypeChart items={data.byType} /></CardContent>
-        </Card>
-      )}
+      <ByTypeSection title="Pendiente por tipo" items={data.byType} />
 
       <Card>
         <CardHeader className="pb-2">
@@ -408,13 +420,13 @@ function FaltaCobrarView({ data, month, year }: { data: FaltaCobrarData; month: 
                 {filtered.map((r) => (
                   <tr key={r.id} className={`hover:bg-[hsl(var(--accent))]/40 transition-colors ${r.status === "overdue" ? "bg-red-50/40" : ""}`}>
                     <td className="py-2.5 px-4 font-medium">{r.fullName}</td>
-                    <td className="py-2.5 px-3 hidden sm:table-cell text-[hsl(var(--muted-foreground))]">{r.dni}</td>
+                    <td className="py-2.5 px-3 hidden sm:table-cell text-[hsl(var(--muted-foreground))]"><SensitiveText value={r.dni} type="dni" /></td>
                     <td className="py-2.5 px-3 hidden lg:table-cell text-[hsl(var(--muted-foreground))]">{r.legajo ?? "—"}</td>
                     <td className="py-2.5 px-3 hidden md:table-cell">
                       <BenefitTypeBadge type={r.type as "ayuda_economica" | "supermercado" | "otro"} />
                     </td>
                     <td className="py-2.5 px-3 text-center text-[hsl(var(--muted-foreground))]">{r.installmentNumber}/{r.totalInstallments}</td>
-                    <td className="py-2.5 px-3 text-right font-semibold">{formatCurrencyARS(r.amount)}</td>
+                    <td className="py-2.5 px-3 text-right font-semibold"><SensitiveValue value={formatCurrencyARS(r.amount)} /></td>
                     <td className="py-2.5 px-3 hidden sm:table-cell text-[hsl(var(--muted-foreground))]">{formatDate(r.dueDate)}</td>
                     <td className="py-2.5 px-3">
                       <InstallmentStatusBadge status={r.status as "pending" | "overdue" | "paid" | "cancelled"} />
@@ -464,21 +476,16 @@ function GananciaEstimadaView({ data, month, year }: { data: GananciaEstimadaDat
             Es el interés aplicado sobre cada beneficio otorgado.
           </p>
           <div className="mt-3 flex flex-wrap gap-4 text-sm">
-            <span><span className="font-semibold">{formatCurrencyARS(data.totalRepayment)}</span> <span className="text-[hsl(var(--muted-foreground))]">a devolver</span></span>
+            <span><span className="font-semibold"><SensitiveValue value={formatCurrencyARS(data.totalRepayment)} /></span> <span className="text-[hsl(var(--muted-foreground))]">a devolver</span></span>
             <span className="text-[hsl(var(--muted-foreground))]">−</span>
-            <span><span className="font-semibold">{formatCurrencyARS(data.totalCapital)}</span> <span className="text-[hsl(var(--muted-foreground))]">capital</span></span>
+            <span><span className="font-semibold"><SensitiveValue value={formatCurrencyARS(data.totalCapital)} /></span> <span className="text-[hsl(var(--muted-foreground))]">capital</span></span>
             <span className="text-[hsl(var(--muted-foreground))]">=</span>
-            <span className="font-bold text-orange-600">{formatCurrencyARS(data.totalProfit)} ganancia</span>
+            <span className="font-bold text-orange-600"><SensitiveValue value={formatCurrencyARS(data.totalProfit)} /> ganancia</span>
           </div>
         </CardContent>
       </Card>
 
-      {data.byType.length > 1 && (
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Ganancia por tipo</CardTitle></CardHeader>
-          <CardContent><ByTypeChart items={data.byType} /></CardContent>
-        </Card>
-      )}
+      <ByTypeSection title="Ganancia por tipo" items={data.byType} />
 
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm">Beneficios con interés — {data.benefitsCount}</CardTitle></CardHeader>
@@ -499,13 +506,13 @@ function GananciaEstimadaView({ data, month, year }: { data: GananciaEstimadaDat
               {data.rows.map((r) => (
                 <tr key={r.id} className="hover:bg-[hsl(var(--accent))]/40 transition-colors">
                   <td className="py-2.5 px-4 font-medium">{r.fullName}</td>
-                  <td className="py-2.5 px-3 hidden sm:table-cell text-[hsl(var(--muted-foreground))]">{r.dni}</td>
+                  <td className="py-2.5 px-3 hidden sm:table-cell text-[hsl(var(--muted-foreground))]"><SensitiveText value={r.dni} type="dni" /></td>
                   <td className="py-2.5 px-3 hidden md:table-cell">
                     <BenefitTypeBadge type={r.type as "ayuda_economica" | "supermercado" | "otro"} />
                   </td>
-                  <td className="py-2.5 px-3 text-right">{formatCurrencyARS(r.totalAmount)}</td>
-                  <td className="py-2.5 px-3 text-right">{formatCurrencyARS(r.totalRepaymentAmount)}</td>
-                  <td className="py-2.5 px-3 text-right font-semibold text-orange-600">{formatCurrencyARS(r.interestAmount)}</td>
+                  <td className="py-2.5 px-3 text-right"><SensitiveValue value={formatCurrencyARS(r.totalAmount)} /></td>
+                  <td className="py-2.5 px-3 text-right"><SensitiveValue value={formatCurrencyARS(r.totalRepaymentAmount)} /></td>
+                  <td className="py-2.5 px-3 text-right font-semibold text-orange-600"><SensitiveValue value={formatCurrencyARS(r.interestAmount)} /></td>
                   <td className="py-2.5 px-3 text-right hidden md:table-cell text-[hsl(var(--muted-foreground))]">{Number(r.interestRate).toFixed(2)}%</td>
                   <td className="py-2.5 px-3 text-center hidden sm:table-cell text-[hsl(var(--muted-foreground))]">
                     {r.paidCount}/{r.installmentsCount}
@@ -553,18 +560,13 @@ function GananciaPendienteView({ data, month, year }: { data: GananciaPendienteD
             <div className="h-3 rounded-full bg-green-500 transition-all duration-500" style={{ width: `${earnedPercent}%` }} />
           </div>
           <div className="flex justify-between text-xs text-[hsl(var(--muted-foreground))]">
-            <span>{formatCurrencyARS(data.totalEarnedInterest)}</span>
-            <span>{formatCurrencyARS(data.totalPendingInterest)}</span>
+            <span><SensitiveValue value={formatCurrencyARS(data.totalEarnedInterest)} /></span>
+            <span><SensitiveValue value={formatCurrencyARS(data.totalPendingInterest)} /></span>
           </div>
         </CardContent>
       </Card>
 
-      {data.byType.length > 1 && (
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Ganancia pendiente por tipo</CardTitle></CardHeader>
-          <CardContent><ByTypeChart items={data.byType} /></CardContent>
-        </Card>
-      )}
+      <ByTypeSection title="Ganancia pendiente por tipo" items={data.byType} />
 
       <Card>
         <CardHeader className="pb-2">
@@ -590,13 +592,13 @@ function GananciaPendienteView({ data, month, year }: { data: GananciaPendienteD
                 {data.rows.map((r) => (
                   <tr key={r.id} className="hover:bg-[hsl(var(--accent))]/40 transition-colors">
                     <td className="py-2.5 px-4 font-medium">{r.fullName}</td>
-                    <td className="py-2.5 px-3 hidden sm:table-cell text-[hsl(var(--muted-foreground))]">{r.dni}</td>
+                    <td className="py-2.5 px-3 hidden sm:table-cell text-[hsl(var(--muted-foreground))]"><SensitiveText value={r.dni} type="dni" /></td>
                     <td className="py-2.5 px-3 hidden md:table-cell">
                       <BenefitTypeBadge type={r.type as "ayuda_economica" | "supermercado" | "otro"} />
                     </td>
                     <td className="py-2.5 px-3 text-center text-[hsl(var(--muted-foreground))]">{r.installmentNumber}/{r.totalInstallments}</td>
-                    <td className="py-2.5 px-3 text-right font-semibold">{formatCurrencyARS(r.amount)}</td>
-                    <td className="py-2.5 px-3 text-right text-orange-600 font-semibold">{formatCurrencyARS(r.interestPerInstallment)}</td>
+                    <td className="py-2.5 px-3 text-right font-semibold"><SensitiveValue value={formatCurrencyARS(r.amount)} /></td>
+                    <td className="py-2.5 px-3 text-right text-orange-600 font-semibold"><SensitiveValue value={formatCurrencyARS(r.interestPerInstallment)} /></td>
                     <td className="py-2.5 px-3 hidden sm:table-cell text-[hsl(var(--muted-foreground))]">{formatDate(r.dueDate)}</td>
                     <td className="py-2.5 px-3">
                       <InstallmentStatusBadge status={r.status as "pending" | "overdue" | "paid" | "cancelled"} />

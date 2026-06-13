@@ -55,6 +55,23 @@ export interface DashboardGlobals {
   affiliatesWithoutCredit: number;
 }
 
+export interface BenefitTypeSlice {
+  type: string;
+  count: number;
+  totalAmount: number;
+}
+
+export interface CommerceSlice {
+  commerce: string;
+  count: number;
+  totalAmount: number;
+}
+
+export interface DashboardBreakdowns {
+  byType: BenefitTypeSlice[];
+  byCommerce: CommerceSlice[];
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function monthBounds(month: number, year: number) {
@@ -246,6 +263,56 @@ export async function getMonthlyHistory(monthsBack = 6): Promise<MonthlyHistoryR
   }
 
   return results;
+}
+
+// ─── Desglose para gráficos: por tipo y por comercio ──────────────────────────
+
+export async function getBenefitBreakdowns(
+  month: number,
+  year: number
+): Promise<DashboardBreakdowns> {
+  const { start, end } = monthBounds(month, year);
+
+  const [typeRows, commerceRows] = await Promise.all([
+    db.execute(sql`
+      SELECT
+        type,
+        COUNT(*)::int AS count,
+        COALESCE(SUM(total_amount::numeric), 0) AS total
+      FROM benefits
+      WHERE date BETWEEN ${start} AND ${end}
+        AND status != 'cancelled'
+      GROUP BY type
+      ORDER BY total DESC
+    `),
+    db.execute(sql`
+      SELECT
+        COALESCE(NULLIF(TRIM(commerce), ''), 'Sin comercio') AS commerce,
+        COUNT(*)::int AS count,
+        COALESCE(SUM(total_amount::numeric), 0) AS total
+      FROM benefits
+      WHERE date BETWEEN ${start} AND ${end}
+        AND status != 'cancelled'
+      GROUP BY 1
+      ORDER BY total DESC
+      LIMIT 6
+    `),
+  ]);
+
+  type Row = { type?: string; commerce?: string; count: number; total: string };
+
+  return {
+    byType: (typeRows.rows as Row[]).map((r) => ({
+      type: r.type ?? "otro",
+      count: r.count,
+      totalAmount: roundMoney(Number(r.total)),
+    })),
+    byCommerce: (commerceRows.rows as Row[]).map((r) => ({
+      commerce: r.commerce ?? "Sin comercio",
+      count: r.count,
+      totalAmount: roundMoney(Number(r.total)),
+    })),
+  };
 }
 
 // ─── Datos globales (no dependen del período) ─────────────────────────────────

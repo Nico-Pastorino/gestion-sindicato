@@ -48,8 +48,36 @@ export const affiliates = pgTable(
     dni: text("dni").notNull(),
     legajo: text("legajo"),
     area: text("area"),
+    sector: text("sector"),
+    position: text("position"),
+    employmentType: text("employment_type", {
+      enum: ["planta", "contratado", "jubilado", "otro"],
+    }),
+    workShift: text("work_shift"),
+    hireDate: date("hire_date"),
+    affiliationDate: date("affiliation_date"),
     grossSalary: numeric("gross_salary", { precision: 14, scale: 2 }),
     phone: text("phone"),
+    alternatePhone: text("alternate_phone"),
+    email: text("email"),
+    cuil: text("cuil"),
+    birthDate: date("birth_date"),
+    maritalStatus: text("marital_status"),
+    streetAddress: text("street_address"),
+    addressNumber: text("address_number"),
+    neighborhood: text("neighborhood"),
+    city: text("city"),
+    province: text("province"),
+    postalCode: text("postal_code"),
+    emergencyContactName: text("emergency_contact_name"),
+    emergencyContactRelation: text("emergency_contact_relation"),
+    emergencyContactPhone: text("emergency_contact_phone"),
+    documentationStatus: text("documentation_status", {
+      enum: ["complete", "pending", "missing"],
+    })
+      .notNull()
+      .default("pending"),
+    privateNotes: text("private_notes"),
     status: text("status", { enum: ["active", "inactive"] })
       .notNull()
       .default("active"),

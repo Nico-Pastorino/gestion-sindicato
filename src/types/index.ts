@@ -50,7 +50,11 @@ export type AuditAction =
   | "installment_cancelled"
   | "salary_updated"
   | "override_credit_limit"
-  | "export_generated";
+  | "export_generated"
+  | "user_created"
+  | "user_updated"
+  | "user_password_reset"
+  | "user_deleted";
 
 // ─── Vista: affiliate_credit_summary ─────────────────────────────────────────
 
@@ -60,6 +64,10 @@ export interface AffiliateCreditSummary {
   dni: string;
   legajo: string | null;
   area: string | null;
+  sector?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  documentationStatus?: "complete" | "pending" | "missing";
   status: AffiliateStatus;
   /** null si el afiliado todavía no tiene salario cargado */
   grossSalary: string | null;

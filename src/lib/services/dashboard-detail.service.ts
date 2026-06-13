@@ -301,7 +301,7 @@ export async function getGananciaEstimadaDetail(month: number, year: number): Pr
     WHERE b.date BETWEEN ${start} AND ${end}
       AND b.status != 'cancelled'
       AND b.interest_amount::numeric > 0
-    GROUP BY b.id, a.full_name, a.dni
+    GROUP BY b.id, a.id, a.full_name, a.dni
     ORDER BY b.interest_amount::numeric DESC
   `);
 

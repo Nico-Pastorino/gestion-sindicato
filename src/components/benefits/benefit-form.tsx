@@ -17,6 +17,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { SensitiveText, SensitiveValue } from "@/components/privacy/sensitive-value";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -283,7 +284,9 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
             <div className="flex items-center justify-between rounded-lg border bg-[hsl(var(--muted))]/40 px-4 py-3">
               <div>
                 <p className="font-medium">{affiliate.fullName}</p>
-                <p className="text-sm text-[hsl(var(--muted-foreground))]">DNI {affiliate.dni}</p>
+                <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                  <SensitiveText value={affiliate.dni} type="dni" prefix="DNI " />
+                </p>
               </div>
               <Button
                 type="button"
@@ -322,13 +325,13 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
                       <div>
                         <p className="font-medium">{a.fullName}</p>
                         <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                          DNI {a.dni}{a.legajo ? ` · Legajo ${a.legajo}` : ""}{a.area ? ` · ${a.area}` : ""}
+                          <SensitiveText value={a.dni} type="dni" prefix="DNI " />{a.legajo ? ` · Legajo ${a.legajo}` : ""}{a.area ? ` · ${a.area}` : ""}
                         </p>
                       </div>
                       <div className="text-right shrink-0 ml-4">
                         <p className="text-xs text-[hsl(var(--muted-foreground))]">Cupo mensual</p>
                         <p className={`text-sm font-semibold ${Number(a.availableAmount) <= 0 ? "text-red-600" : "text-green-600"}`}>
-                          {formatCurrencyARS(a.availableAmount)}
+                          <SensitiveValue value={formatCurrencyARS(a.availableAmount)} />
                         </p>
                       </div>
                     </button>
@@ -344,16 +347,16 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div>
                   <p className="text-xs text-[hsl(var(--muted-foreground))]">Salario Bruto</p>
-                  <p className="text-sm font-semibold">{formatCurrencyARS(creditSummary.grossSalary)}</p>
+                  <p className="text-sm font-semibold"><SensitiveValue value={formatCurrencyARS(creditSummary.grossSalary)} /></p>
                 </div>
                 <div>
                   <p className="text-xs text-[hsl(var(--muted-foreground))]">Tope mensual 30%</p>
-                  <p className="text-sm font-semibold text-blue-600">{formatCurrencyARS(creditSummary.creditLimit30)}</p>
+                  <p className="text-sm font-semibold text-blue-600"><SensitiveValue value={formatCurrencyARS(creditSummary.creditLimit30)} /></p>
                 </div>
                 <div>
                   <p className="text-xs text-[hsl(var(--muted-foreground))]">Cupo mensual libre</p>
                   <p className={`text-sm font-bold ${Number(creditSummary.availableAmount) <= 0 ? "text-red-600" : "text-green-600"}`}>
-                    {formatCurrencyARS(creditSummary.availableAmount)}
+                    <SensitiveValue value={formatCurrencyARS(creditSummary.availableAmount)} />
                   </p>
                 </div>
               </div>
@@ -483,12 +486,12 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
             <div className="rounded-lg bg-[hsl(var(--muted))]/40 p-3 grid grid-cols-2 gap-2 sm:grid-cols-4 text-sm">
               <div>
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">Total a devolver</p>
-                <p className="font-semibold">{formatCurrencyARS(totalRepayment)}</p>
+                <p className="font-semibold"><SensitiveValue value={formatCurrencyARS(totalRepayment)} /></p>
               </div>
               <div>
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">Interés total</p>
                 <p className={`font-semibold ${interestAmount > 0 ? "text-orange-600" : ""}`}>
-                  {formatCurrencyARS(interestAmount)}
+                  <SensitiveValue value={formatCurrencyARS(interestAmount)} />
                 </p>
               </div>
               <div>
@@ -501,7 +504,7 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">Base sin interés</p>
                 <p className="font-medium text-[hsl(var(--muted-foreground))]">
                   {form.totalAmount > 0 && form.installmentsCount > 0
-                    ? formatCurrencyARS(form.totalAmount / form.installmentsCount)
+                    ? <SensitiveValue value={formatCurrencyARS(form.totalAmount / form.installmentsCount)} />
                     : "—"}
                 </p>
               </div>
@@ -525,7 +528,7 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
                       {formatDate(date)}
                     </span>
                     <span className="font-semibold text-blue-700">
-                      {formatCurrencyARS(form.installmentAmount)}
+                      <SensitiveValue value={formatCurrencyARS(form.installmentAmount)} />
                     </span>
                   </div>
                 ))}
@@ -594,12 +597,12 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
                       {projection.months.map((m) => (
                         <tr key={m.month} className={`border-b last:border-0 ${!m.ok ? "bg-red-50" : ""}`}>
                           <td className="py-2 pr-3 font-medium capitalize">{m.monthLabel}</td>
-                          <td className="text-right py-2 px-3">{formatCurrencyARS(m.creditLimit30)}</td>
-                          <td className="text-right py-2 px-3">{formatCurrencyARS(m.activeDiscounts)}</td>
-                          <td className="text-right py-2 px-3 font-medium text-blue-700">{formatCurrencyARS(m.newInstallment)}</td>
-                          <td className={`text-right py-2 px-3 font-semibold ${!m.ok ? "text-red-700" : ""}`}>{formatCurrencyARS(m.projectedTotal)}</td>
+                          <td className="text-right py-2 px-3"><SensitiveValue value={formatCurrencyARS(m.creditLimit30)} /></td>
+                          <td className="text-right py-2 px-3"><SensitiveValue value={formatCurrencyARS(m.activeDiscounts)} /></td>
+                          <td className="text-right py-2 px-3 font-medium text-blue-700"><SensitiveValue value={formatCurrencyARS(m.newInstallment)} /></td>
+                          <td className={`text-right py-2 px-3 font-semibold ${!m.ok ? "text-red-700" : ""}`}><SensitiveValue value={formatCurrencyARS(m.projectedTotal)} /></td>
                           <td className={`text-right py-2 pl-3 font-semibold ${m.availableAfter < 0 ? "text-red-700" : "text-green-700"}`}>
-                            {formatCurrencyARS(m.availableAfter)}
+                            <SensitiveValue value={formatCurrencyARS(m.availableAfter)} />
                             {!m.ok && " ⚠"}
                           </td>
                         </tr>

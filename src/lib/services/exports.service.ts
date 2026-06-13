@@ -41,6 +41,7 @@ export async function getMunicipalityPreview(
 ): Promise<MunicipalityPreviewSummary> {
   const result = await db.execute(sql`
     SELECT
+      b.id                    AS benefit_id,
       a.full_name             AS full_name,
       a.dni                   AS dni,
       a.legajo                AS legajo,
@@ -66,6 +67,7 @@ export async function getMunicipalityPreview(
   `);
 
   type RawRow = {
+    benefit_id: string;
     full_name: string; dni: string; legajo: string | null; area: string | null;
     type: string; commerce: string | null; grant_date: string; total_amount: string;
     installments_count: number; installment_number: number; total_installments: number;
@@ -73,7 +75,9 @@ export async function getMunicipalityPreview(
     interest_amount: string; observations: string | null;
   };
 
-  const rows = (result.rows as RawRow[]).map((r) => ({
+  const rawRows = result.rows as RawRow[];
+
+  const rows = rawRows.map((r) => ({
     fullName: r.full_name, dni: r.dni, legajo: r.legajo, area: r.area,
     type: r.type, commerce: r.commerce, grantDate: r.grant_date,
     totalAmount: r.total_amount, installmentsCount: r.installments_count,
@@ -83,25 +87,29 @@ export async function getMunicipalityPreview(
     observations: r.observations,
   }));
 
-  // Aggregate per unique benefit
-  const uniqueBenefits = new Set(
-    rows.map((r) => `${r.fullName}-${r.grantDate}-${r.totalAmount}`)
-  );
+  // Agregar por beneficio único (clave: id real, evita colisiones)
+  const benefitTotals = new Map<string, { principal: number; interest: number }>();
+  for (const r of rawRows) {
+    if (!benefitTotals.has(r.benefit_id)) {
+      benefitTotals.set(r.benefit_id, {
+        principal: Number(r.total_amount),
+        interest: Number(r.interest_amount),
+      });
+    }
+  }
 
-  const totalPrincipal = [...uniqueBenefits].reduce((sum, key) => {
-    const row = rows.find((r) => `${r.fullName}-${r.grantDate}-${r.totalAmount}` === key);
-    return sum + Number(row?.totalAmount ?? 0);
-  }, 0);
+  let totalPrincipal = 0;
+  let totalInterest = 0;
+  for (const totals of benefitTotals.values()) {
+    totalPrincipal += totals.principal;
+    totalInterest += totals.interest;
+  }
 
   const totalInstallment = rows.reduce((sum, r) => sum + Number(r.installmentAmount), 0);
-  const totalInterest = [...uniqueBenefits].reduce((sum, key) => {
-    const row = rows.find((r) => `${r.fullName}-${r.grantDate}-${r.totalAmount}` === key);
-    return sum + Number(row?.interestAmount ?? 0);
-  }, 0);
 
   return {
     rows,
-    benefitsCount: uniqueBenefits.size,
+    benefitsCount: benefitTotals.size,
     recordsCount: rows.length,
     totalPrincipal: Math.round(totalPrincipal * 100) / 100,
     totalInstallment: Math.round(totalInstallment * 100) / 100,

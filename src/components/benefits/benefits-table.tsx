@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { BenefitStatusBadge, BenefitTypeBadge } from "@/components/ui/badge";
+import { SensitiveText, SensitiveValue } from "@/components/privacy/sensitive-value";
 import { formatCurrency } from "@/lib/utils/credit";
 import { formatDate } from "@/lib/utils/date";
 import { Eye } from "lucide-react";
@@ -75,7 +76,7 @@ export function BenefitsTable({ benefits, showAffiliate = true }: BenefitsTableP
                   {b.affiliate.fullName}
                 </Link>
                 <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
-                  DNI {b.affiliate.dni}
+                  <SensitiveText value={b.affiliate.dni} type="dni" prefix="DNI " />
                   {b.affiliate.area ? ` · ${b.affiliate.area}` : ""}
                 </p>
               </TableCell>
@@ -90,10 +91,10 @@ export function BenefitsTable({ benefits, showAffiliate = true }: BenefitsTableP
               {b.commerce ?? "—"}
             </TableCell>
             <TableCell className="hidden lg:table-cell text-sm">
-              {formatCurrency(b.totalAmount)}
+              <SensitiveValue value={formatCurrency(b.totalAmount)} />
             </TableCell>
             <TableCell className="text-sm font-semibold">
-              {formatCurrency(b.installmentAmount)}
+              <SensitiveValue value={formatCurrency(b.installmentAmount)} />
             </TableCell>
             <TableCell className="hidden md:table-cell text-sm text-[hsl(var(--muted-foreground))]">
               {b.installmentsCount}

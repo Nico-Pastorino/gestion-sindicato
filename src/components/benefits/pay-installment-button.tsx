@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { SensitiveValue } from "@/components/privacy/sensitive-value";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/credit";
 import { toISODate, formatDate } from "@/lib/utils/date";
@@ -81,7 +82,7 @@ export function PayInstallmentButton({
           </DialogTitle>
           <DialogDescription>
             Cuota {installmentNumber}/{totalInstallments} — Vencimiento:{" "}
-            {formatDate(dueDate)} — Monto: <strong>{formatCurrency(amount)}</strong>
+            {formatDate(dueDate)} — Monto: <strong><SensitiveValue value={formatCurrency(amount)} /></strong>
           </DialogDescription>
         </DialogHeader>
 

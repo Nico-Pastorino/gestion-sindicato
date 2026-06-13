@@ -4,12 +4,15 @@ import {
   getPendingInstallmentsForPeriod,
   getMonthlyHistory,
   getDashboardGlobals,
+  getBenefitBreakdowns,
 } from "@/lib/services/dashboard.service";
+import { requireSession, authErrorResponse } from "@/lib/auth/guards";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
 export async function GET(req: NextRequest) {
   try {
+    await requireSession();
     const params = req.nextUrl.searchParams;
     const now = new Date();
     const month = parseInt(params.get("month") ?? String(now.getMonth() + 1), 10);
@@ -26,11 +29,12 @@ export async function GET(req: NextRequest) {
     const label = format(monthDate, "MMMM yyyy", { locale: es });
     const labelCapitalized = label.charAt(0).toUpperCase() + label.slice(1);
 
-    const [summary, pendingInstallments, monthlyHistory, globals] = await Promise.all([
+    const [summary, pendingInstallments, monthlyHistory, globals, breakdowns] = await Promise.all([
       getDashboardSummary(month, year),
       getPendingInstallmentsForPeriod(month, year, 50),
       getMonthlyHistory(6),
       getDashboardGlobals(),
+      getBenefitBreakdowns(month, year),
     ]);
 
     return NextResponse.json({
@@ -40,8 +44,11 @@ export async function GET(req: NextRequest) {
       pendingInstallments,
       monthlyHistory,
       globals,
+      breakdowns,
     });
   } catch (error) {
+    const authRes = authErrorResponse(error);
+    if (authRes) return authRes;
     console.error("[GET /api/dashboard]", error);
     return NextResponse.json({ ok: false, message: "Error al cargar el dashboard." }, { status: 500 });
   }

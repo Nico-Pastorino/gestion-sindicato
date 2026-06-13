@@ -9,6 +9,7 @@ import {
   getGananciaEstimadaDetail,
   getGananciaPendienteDetail,
 } from "@/lib/services/dashboard-detail.service";
+import { requireSession, authErrorResponse } from "@/lib/auth/guards";
 
 export async function GET(
   req: NextRequest,
@@ -29,6 +30,7 @@ export async function GET(
   const periodLabel = lbl.charAt(0).toUpperCase() + lbl.slice(1);
 
   try {
+    await requireSession();
     let data: unknown;
     switch (metric) {
       case "capital-entregado":  data = await getCapitalEntregadoDetail(month, year); break;
@@ -42,6 +44,8 @@ export async function GET(
     }
     return NextResponse.json({ ok: true, metric, period: { month, year, label: periodLabel }, data });
   } catch (error) {
+    const authRes = authErrorResponse(error);
+    if (authRes) return authRes;
     console.error(`[GET /api/dashboard/${metric}]`, error);
     return NextResponse.json({ ok: false, message: "Error al cargar el detalle." }, { status: 500 });
   }

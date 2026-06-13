@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { SensitiveText, SensitiveValue } from "@/components/privacy/sensitive-value";
 import { formatCurrencyARS } from "@/lib/utils/currency";
 import { formatDate } from "@/lib/utils/date";
 import type { MunicipalityPreviewSummary } from "@/lib/services/exports.service";
@@ -208,9 +209,9 @@ export function ExportClient({
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
               <SummaryItem label="Beneficios incluidos" value={String(preview.benefitsCount)} />
               <SummaryItem label="Cuotas incluidas" value={String(preview.recordsCount)} />
-              <SummaryItem label="Capital otorgado" value={formatCurrencyARS(preview.totalPrincipal)} accent="blue" />
-              <SummaryItem label="Total a descontar" value={formatCurrencyARS(preview.totalInstallment)} accent="green" />
-              <SummaryItem label="Interés total" value={formatCurrencyARS(preview.totalInterest)} accent="orange" />
+              <SummaryItem label="Capital otorgado" value={<SensitiveValue value={formatCurrencyARS(preview.totalPrincipal)} />} accent="blue" />
+              <SummaryItem label="Total a descontar" value={<SensitiveValue value={formatCurrencyARS(preview.totalInstallment)} />} accent="green" />
+              <SummaryItem label="Interés total" value={<SensitiveValue value={formatCurrencyARS(preview.totalInterest)} />} accent="orange" />
             </div>
           )}
 
@@ -285,7 +286,7 @@ export function ExportClient({
                   <TableRow key={idx}>
                     <TableCell className="text-xs text-[hsl(var(--muted-foreground))]">{idx + 1}</TableCell>
                     <TableCell className="font-medium text-sm">{row.fullName}</TableCell>
-                    <TableCell className="hidden sm:table-cell text-sm">{row.dni}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm"><SensitiveText value={row.dni} type="dni" /></TableCell>
                     <TableCell className="hidden lg:table-cell text-sm">{row.legajo ?? "—"}</TableCell>
                     <TableCell className="hidden md:table-cell text-xs">{getBenefitTypeLabel(row.type)}</TableCell>
                     <TableCell className="hidden lg:table-cell text-sm">{formatDate(row.grantDate)}</TableCell>
@@ -296,7 +297,7 @@ export function ExportClient({
                       {row.installmentNumber}/{row.totalInstallments}
                     </TableCell>
                     <TableCell className="text-sm font-semibold text-green-700">
-                      {formatCurrencyARS(row.installmentAmount)}
+                      <SensitiveValue value={formatCurrencyARS(row.installmentAmount)} />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -346,10 +347,10 @@ export function ExportClient({
                       {log.benefitsCount} benef. · {log.recordsCount} cuotas
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-sm">
-                      {formatCurrencyARS(log.totalPrincipal)}
+                      <SensitiveValue value={formatCurrencyARS(log.totalPrincipal)} />
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-sm font-medium">
-                      {formatCurrencyARS(log.totalInstallment)}
+                      <SensitiveValue value={formatCurrencyARS(log.totalInstallment)} />
                     </TableCell>
                     <TableCell>
                       <ExportStatusBadge status={log.status} />
@@ -413,7 +414,7 @@ export function ExportClient({
 
 function SummaryItem({
   label, value, accent,
-}: { label: string; value: string; accent?: "blue" | "green" | "orange" }) {
+}: { label: string; value: React.ReactNode; accent?: "blue" | "green" | "orange" }) {
   const colors = { blue: "text-blue-700", green: "text-green-700", orange: "text-orange-600" };
   return (
     <div className="rounded-lg bg-[hsl(var(--muted))]/40 p-3 text-center">

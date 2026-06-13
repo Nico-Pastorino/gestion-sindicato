@@ -1,5 +1,8 @@
+"use client";
+
 import { cn } from "@/lib/utils/cn";
 import { formatCurrency } from "@/lib/utils/credit";
+import { SensitiveValue } from "@/components/privacy/sensitive-value";
 
 interface CreditBarProps {
   grossSalary: string | number;
@@ -29,8 +32,8 @@ export function CreditBar({
     <div className={cn("space-y-2", className)}>
       {showLabels && (
         <div className="flex items-center justify-between text-xs text-[hsl(var(--muted-foreground))]">
-          <span>Usado: {formatCurrency(used)}</span>
-          <span>Tope 30%: {formatCurrency(limit)}</span>
+          <span>Usado: <SensitiveValue value={formatCurrency(used)} /></span>
+          <span>Tope 30%: <SensitiveValue value={formatCurrency(limit)} /></span>
         </div>
       )}
       <div className="h-2.5 w-full rounded-full bg-[hsl(var(--muted))]">
@@ -49,7 +52,7 @@ export function CreditBar({
             isEmpty ? "text-red-600" : isLow ? "text-yellow-600" : "text-green-600"
           )}
         >
-          Disponible: {formatCurrency(available)}
+          Disponible: <SensitiveValue value={formatCurrency(available)} />
         </p>
       )}
     </div>

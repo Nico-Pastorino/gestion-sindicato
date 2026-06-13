@@ -24,6 +24,12 @@ export const createAffiliateSchema = z.object({
     .trim()
     .optional()
     .nullable(),
+  sector: z.string().max(100, "El sector no puede superar 100 caracteres").trim().optional().nullable(),
+  position: z.string().max(100, "El cargo no puede superar 100 caracteres").trim().optional().nullable(),
+  employmentType: z.enum(["planta", "contratado", "jubilado", "otro"]).optional().nullable(),
+  workShift: z.string().max(80, "El turno no puede superar 80 caracteres").trim().optional().nullable(),
+  hireDate: z.string().trim().optional().nullable(),
+  affiliationDate: z.string().trim().optional().nullable(),
   grossSalary: z
     .number()
     .min(0, "El salario no puede ser negativo")
@@ -36,6 +42,29 @@ export const createAffiliateSchema = z.object({
     .trim()
     .optional()
     .nullable(),
+  alternatePhone: z.string().max(30, "El teléfono alternativo no puede superar 30 caracteres").trim().optional().nullable(),
+  email: z
+    .string()
+    .email("Correo inválido")
+    .max(200, "El correo no puede superar 200 caracteres")
+    .trim()
+    .optional()
+    .or(z.literal(""))
+    .nullable(),
+  cuil: z.string().max(20, "El CUIL no puede superar 20 caracteres").trim().optional().nullable(),
+  birthDate: z.string().trim().optional().nullable(),
+  maritalStatus: z.string().max(80, "El estado civil no puede superar 80 caracteres").trim().optional().nullable(),
+  streetAddress: z.string().max(160, "La calle no puede superar 160 caracteres").trim().optional().nullable(),
+  addressNumber: z.string().max(30, "La numeración no puede superar 30 caracteres").trim().optional().nullable(),
+  neighborhood: z.string().max(100, "El barrio no puede superar 100 caracteres").trim().optional().nullable(),
+  city: z.string().max(100, "La localidad no puede superar 100 caracteres").trim().optional().nullable(),
+  province: z.string().max(100, "La provincia no puede superar 100 caracteres").trim().optional().nullable(),
+  postalCode: z.string().max(20, "El código postal no puede superar 20 caracteres").trim().optional().nullable(),
+  emergencyContactName: z.string().max(160, "El contacto no puede superar 160 caracteres").trim().optional().nullable(),
+  emergencyContactRelation: z.string().max(80, "El vínculo no puede superar 80 caracteres").trim().optional().nullable(),
+  emergencyContactPhone: z.string().max(30, "El teléfono de emergencia no puede superar 30 caracteres").trim().optional().nullable(),
+  documentationStatus: z.enum(["complete", "pending", "missing"]).default("pending"),
+  privateNotes: z.string().max(3000, "Las observaciones no pueden superar 3000 caracteres").trim().optional().nullable(),
   status: z.enum(["active", "inactive"]).default("active"),
 });
 

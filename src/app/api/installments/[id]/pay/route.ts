@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { payInstallment } from "@/lib/services/installments.service";
 import { payInstallmentSchema } from "@/lib/validations/installment.schema";
+import { requireRole, authErrorResponse } from "@/lib/auth/guards";
 import { ZodError } from "zod";
 
 export async function POST(
@@ -8,12 +9,15 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await requireRole("admin", "operator");
     const { id } = await params;
     const body = await req.json().catch(() => ({}));
     const input = payInstallmentSchema.parse({ ...body, id });
-    const result = await payInstallment(input);
+    const result = await payInstallment(input, session.user.id);
     return NextResponse.json({ data: result });
   } catch (error) {
+    const authRes = authErrorResponse(error);
+    if (authRes) return authRes;
     if (error instanceof ZodError) {
       return NextResponse.json(
         { error: { code: "VALIDATION_ERROR", message: "Datos inválidos", details: error.issues } },

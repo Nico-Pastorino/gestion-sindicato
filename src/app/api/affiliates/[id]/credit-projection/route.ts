@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAffiliateById } from "@/lib/services/affiliates.service";
 import { getMonthlyProjection } from "@/lib/services/benefits.service";
 import { parseCurrencyInput } from "@/lib/utils/currency";
+import { requireSession, authErrorResponse } from "@/lib/auth/guards";
 import { z } from "zod";
 
 const querySchema = z.object({
@@ -15,6 +16,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireSession();
     const { id } = await params;
     const raw = Object.fromEntries(req.nextUrl.searchParams);
 
@@ -57,6 +59,8 @@ export async function GET(
 
     return NextResponse.json({ ok: true, data: projection });
   } catch (error) {
+    const authRes = authErrorResponse(error);
+    if (authRes) return authRes;
     console.error("[GET /api/affiliates/[id]/credit-projection]", error);
     return NextResponse.json(
       { ok: false, message: "Error al calcular la proyección" },

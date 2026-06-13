@@ -190,7 +190,7 @@ export async function autoPayDueInstallments(processDate = new Date()) {
 // ─── Listar cuotas con filtros (parametrizado, sin SQL injection) ─────────────
 
 export async function listInstallments(input: InstallmentFiltersInput) {
-  const { affiliateId, benefitId, status, month, year, area, page, limit } = input;
+  const { affiliateId, benefitId, status, month, year, area, search, page, limit } = input;
   const offset = (page - 1) * limit;
 
   // Construimos con sql tagged template para parametrización segura
@@ -198,10 +198,21 @@ export async function listInstallments(input: InstallmentFiltersInput) {
 
   if (affiliateId) baseWhere = sql`${baseWhere} AND i.affiliate_id = ${affiliateId}`;
   if (benefitId) baseWhere = sql`${baseWhere} AND i.benefit_id = ${benefitId}`;
-  if (status) baseWhere = sql`${baseWhere} AND i.status = ${status}`;
+  if (status === "unpaid") {
+    baseWhere = sql`${baseWhere} AND i.status IN ('pending', 'overdue')`;
+  } else if (status) {
+    baseWhere = sql`${baseWhere} AND i.status = ${status}`;
+  }
   if (month) baseWhere = sql`${baseWhere} AND EXTRACT(MONTH FROM i.due_date) = ${month}`;
   if (year) baseWhere = sql`${baseWhere} AND EXTRACT(YEAR FROM i.due_date) = ${year}`;
   if (area) baseWhere = sql`${baseWhere} AND a.area ILIKE ${'%' + area + '%'}`;
+  if (search) {
+    baseWhere = sql`${baseWhere} AND (
+      a.full_name ILIKE ${'%' + search + '%'}
+      OR a.dni ILIKE ${'%' + search + '%'}
+      OR a.legajo ILIKE ${'%' + search + '%'}
+    )`;
+  }
 
   const [rows, countResult] = await Promise.all([
     db.execute(sql`
@@ -260,6 +271,58 @@ export async function markOverdueInstallments() {
     .returning({ id: installments.id });
 
   return result.length;
+}
+
+// ─── Resumen de cobranzas (cuotas no cobradas) ───────────────────────────────
+
+export interface CollectionsSummary {
+  pendingCount: number;
+  overdueCount: number;
+  pendingTotal: number;
+  overdueTotal: number;
+  affiliatesCount: number;
+  oldestDueDate: string | null;
+}
+
+/**
+ * Resumen de cuotas pendientes/vencidas. Si se pasa mes/año filtra por
+ * vencimiento en ese mes; si no, considera todas las no cobradas.
+ */
+export async function getCollectionsSummary(
+  month?: number,
+  year?: number
+): Promise<CollectionsSummary> {
+  let where = sql`i.status IN ('pending', 'overdue')`;
+  if (month && year) {
+    where = sql`${where} AND EXTRACT(MONTH FROM i.due_date) = ${month} AND EXTRACT(YEAR FROM i.due_date) = ${year}`;
+  }
+
+  const result = await db.execute(sql`
+    SELECT
+      COUNT(*) FILTER (WHERE i.status = 'pending')::int AS pending_count,
+      COUNT(*) FILTER (WHERE i.status = 'overdue')::int AS overdue_count,
+      COALESCE(SUM(i.amount::numeric) FILTER (WHERE i.status = 'pending'), 0) AS pending_total,
+      COALESCE(SUM(i.amount::numeric) FILTER (WHERE i.status = 'overdue'), 0) AS overdue_total,
+      COUNT(DISTINCT i.affiliate_id)::int AS affiliates_count,
+      MIN(i.due_date) AS oldest_due_date
+    FROM installments i
+    WHERE ${where}
+  `);
+
+  const row = result.rows[0] as {
+    pending_count: number; overdue_count: number;
+    pending_total: string; overdue_total: string;
+    affiliates_count: number; oldest_due_date: string | null;
+  };
+
+  return {
+    pendingCount: row?.pending_count ?? 0,
+    overdueCount: row?.overdue_count ?? 0,
+    pendingTotal: Number(row?.pending_total ?? 0),
+    overdueTotal: Number(row?.overdue_total ?? 0),
+    affiliatesCount: row?.affiliates_count ?? 0,
+    oldestDueDate: row?.oldest_due_date ?? null,
+  };
 }
 
 // ─── Resumen de cuotas por mes ────────────────────────────────────────────────
