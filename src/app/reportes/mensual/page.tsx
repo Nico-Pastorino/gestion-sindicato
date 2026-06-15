@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { Building2 } from "lucide-react";
-import { auth } from "@/lib/auth";
 import {
   getDashboardSummary,
   getBenefitBreakdowns,
@@ -31,9 +29,6 @@ interface PageProps {
 }
 
 export default async function ReporteMensualPage({ searchParams }: PageProps) {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
-
   const sp = await searchParams;
   const now = new Date();
   const month = sp.month ? Math.min(12, Math.max(1, Number(sp.month))) : now.getMonth() + 1;

@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
-import type { Session } from "next-auth";
-import { auth } from "@/lib/auth";
-import type { UserRole } from "@/types/next-auth";
 
-// El proxy ya bloquea requests sin sesión, pero según la guía de seguridad
-// de Next.js cada handler debe verificar autorización por su cuenta
-// (un cambio de matcher no debe dejar endpoints expuestos).
+// Autenticación deshabilitada temporalmente: la app no usa login ni roles.
+// Estos guards quedan como no-op para que los route handlers existentes sigan
+// funcionando sin cambios. Para reactivar el control de acceso, volvé a
+// implementar requireSession/requireRole contra el sistema de sesión.
+
+export interface AppSession {
+  user: {
+    id?: string;
+    name?: string;
+    email?: string;
+    role?: string;
+  };
+}
 
 export class AuthError extends Error {
   constructor(
@@ -17,34 +24,17 @@ export class AuthError extends Error {
   }
 }
 
-export async function requireSession(): Promise<Session> {
-  const session = await auth();
-  if (!session?.user?.id) {
-    throw new AuthError(401, "Sesión requerida");
-  }
-  return session;
+export async function requireSession(): Promise<AppSession> {
+  return { user: {} };
 }
 
-export async function requireRole(...roles: UserRole[]): Promise<Session> {
-  const session = await requireSession();
-  if (!roles.includes(session.user.role)) {
-    throw new AuthError(403, "No tenés permisos para realizar esta acción");
-  }
-  return session;
+export async function requireRole(..._roles: string[]): Promise<AppSession> {
+  void _roles;
+  return { user: {} };
 }
 
-/** Convierte un AuthError en respuesta JSON; null si no es un AuthError. */
-export function authErrorResponse(error: unknown): NextResponse | null {
-  if (error instanceof AuthError) {
-    return NextResponse.json(
-      {
-        error: {
-          code: error.status === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
-          message: error.message,
-        },
-      },
-      { status: error.status }
-    );
-  }
+/** Sin auth no se generan AuthError; siempre devuelve null. */
+export function authErrorResponse(_error: unknown): NextResponse | null {
+  void _error;
   return null;
 }

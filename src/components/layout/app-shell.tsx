@@ -5,21 +5,8 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { PrivacyProvider } from "@/contexts/privacy-context";
-import type { UserRole } from "@/types/next-auth";
 
-export interface SessionUser {
-  name: string;
-  email: string;
-  role: UserRole;
-}
-
-export function AppShell({
-  user,
-  children,
-}: {
-  user: SessionUser;
-  children: React.ReactNode;
-}) {
+export function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
 
@@ -35,7 +22,7 @@ export function AppShell({
     <div className="flex h-dvh overflow-hidden">
       {/* Sidebar Desktop */}
       <div className="hidden lg:flex lg:flex-col lg:w-[260px] lg:shrink-0">
-        <Sidebar className="h-full" role={user.role} />
+        <Sidebar className="h-full" />
       </div>
 
       {/* Sidebar Mobile Overlay */}
@@ -49,14 +36,14 @@ export function AppShell({
             className="absolute left-0 top-0 h-full w-[260px]"
             onClick={(e) => e.stopPropagation()}
           >
-            <Sidebar className="h-full" role={user.role} />
+            <Sidebar className="h-full" />
           </div>
         </div>
       )}
 
       {/* Main content */}
       <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
-        <Topbar user={user} onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
+        <Topbar onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
             {children}

@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { ScrollText } from "lucide-react";
-import { auth } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Pagination } from "@/components/shared/pagination";
 import { listAuditLogs } from "@/lib/services/audit.service";
@@ -30,11 +28,6 @@ function formatDateTime(iso: string): string {
 }
 
 export default async function AuditoriaPage({ searchParams }: PageProps) {
-  const session = await auth();
-  if (session?.user?.role !== "admin") {
-    redirect("/dashboard");
-  }
-
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1));
 

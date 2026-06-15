@@ -1,51 +1,45 @@
-import NextAuth from "next-auth";
-import { authConfig } from "@/lib/auth/config";
+import { NextResponse, type NextRequest } from "next/server";
+import { GATE_COOKIE, getExpectedToken } from "@/lib/auth/gate";
 
-// Instancia liviana (sin providers ni DB) solo para leer la sesión JWT.
-const { auth } = NextAuth(authConfig);
+// Rutas que NO requieren contraseña:
+// - /unlock y /api/unlock: la propia pantalla de ingreso
+// - /api/cron: protegidas por su propio CRON_SECRET (Bearer)
+const PUBLIC_PREFIXES = ["/unlock", "/api/unlock", "/api/cron"];
 
-// Rutas API que manejan su propia autenticación:
-// - /api/auth: NextAuth (login/logout)
-// - /api/cron: protegidas por CRON_SECRET (Bearer token)
-const PUBLIC_API_PREFIXES = ["/api/auth", "/api/cron"];
+export async function proxy(req: NextRequest) {
+  const { pathname } = req.nextUrl;
 
-export default auth((req) => {
-  const { nextUrl } = req;
-  const pathname = nextUrl.pathname;
-  const isLoggedIn = Boolean(req.auth?.user);
-
-  if (PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
-    return;
+  if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next();
   }
 
+  const expected = await getExpectedToken();
+
+  // Sin APP_PASSWORD configurada el portón queda desactivado (app abierta).
+  if (!expected) return NextResponse.next();
+
+  const token = req.cookies.get(GATE_COOKIE)?.value;
+  if (token && token === expected) {
+    return NextResponse.next();
+  }
+
+  // No autenticado
   if (pathname.startsWith("/api")) {
-    if (!isLoggedIn) {
-      return Response.json(
-        { error: { code: "UNAUTHORIZED", message: "Sesión requerida" } },
-        { status: 401 }
-      );
-    }
-    return;
+    return NextResponse.json(
+      { error: { code: "LOCKED", message: "Acceso bloqueado: ingresá la contraseña." } },
+      { status: 401 }
+    );
   }
 
-  if (pathname === "/login") {
-    if (isLoggedIn) {
-      return Response.redirect(new URL("/dashboard", nextUrl));
-    }
-    return;
+  const url = new URL("/unlock", req.nextUrl);
+  if (pathname !== "/") {
+    url.searchParams.set("from", pathname + req.nextUrl.search);
   }
-
-  if (!isLoggedIn) {
-    const loginUrl = new URL("/login", nextUrl);
-    if (pathname !== "/") {
-      loginUrl.searchParams.set("callbackUrl", pathname + nextUrl.search);
-    }
-    return Response.redirect(loginUrl);
-  }
-});
+  return NextResponse.redirect(url);
+}
 
 export const config = {
-  // Todo excepto estáticos. Las APIs sí pasan por acá (ver arriba).
+  // Todo excepto archivos estáticos. Las páginas y APIs pasan por acá.
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|robots.txt).*)",
   ],
