@@ -336,3 +336,98 @@ export async function getDashboardGlobals(): Promise<DashboardGlobals> {
     affiliatesWithoutCredit: (noCredit.rows[0] as { count: number })?.count ?? 0,
   };
 }
+
+// ─── Estado general del sindicato (global, no depende del período) ────────────
+
+export interface UnionOverview {
+  // Afiliados
+  totalAffiliates: number;
+  affiliatesWithActiveBenefit: number;
+  affiliatesWithoutCredit: number;
+  // Beneficios
+  activeBenefits: number;
+  finishedBenefits: number;
+  // Cartera (todos los beneficios no cancelados)
+  capitalLent: number;       // capital total prestado histórico
+  totalToCollect: number;    // suma de todas las cuotas (capital + interés)
+  collected: number;         // cuotas pagadas
+  outstanding: number;       // cuotas pendientes + vencidas (capital en la calle)
+  overdue: number;           // cuotas vencidas (mora)
+  overdueCount: number;
+  pending: number;           // cuotas pendientes (por vencer)
+  // Ganancia
+  profitTotal: number;       // interés total aplicado
+  profitCollected: number;   // interés ya cobrado (aprox. proporcional)
+  // Cumplimiento global: cuotas vencidas cobradas / total vencidas
+  complianceScore: number | null;
+}
+
+export async function getUnionOverview(): Promise<UnionOverview> {
+  const [instRes, benRes, affActive, affWithBenefit, noCredit] = await Promise.all([
+    db.execute(sql`
+      SELECT
+        COALESCE(SUM(i.amount::numeric), 0)                                              AS total_to_collect,
+        COALESCE(SUM(i.amount::numeric) FILTER (WHERE i.status = 'paid'), 0)             AS collected,
+        COALESCE(SUM(i.amount::numeric) FILTER (WHERE i.status IN ('pending','overdue')), 0) AS outstanding,
+        COALESCE(SUM(i.amount::numeric) FILTER (WHERE i.status = 'overdue'), 0)          AS overdue_amt,
+        COALESCE(SUM(i.amount::numeric) FILTER (WHERE i.status = 'pending'), 0)          AS pending_amt,
+        COUNT(*) FILTER (WHERE i.status = 'overdue')::int                               AS overdue_count,
+        COUNT(*) FILTER (WHERE i.status = 'paid' AND i.due_date <= CURRENT_DATE)::int    AS due_collected,
+        COUNT(*) FILTER (WHERE i.status IN ('paid','pending','overdue') AND i.due_date <= CURRENT_DATE)::int AS due_total
+      FROM installments i
+      JOIN benefits b ON b.id = i.benefit_id
+      WHERE b.status != 'cancelled'
+    `),
+    db.execute(sql`
+      SELECT
+        COALESCE(SUM(total_amount::numeric), 0)    AS capital_lent,
+        COALESCE(SUM(interest_amount::numeric), 0) AS profit_total,
+        COUNT(*) FILTER (WHERE status = 'active')::int   AS active_benefits,
+        COUNT(*) FILTER (WHERE status = 'finished')::int AS finished_benefits
+      FROM benefits
+      WHERE status != 'cancelled'
+    `),
+    db.select({ count: sql<number>`count(*)::int` }).from(affiliates).where(eq(affiliates.status, "active")),
+    db.execute(sql`
+      SELECT COUNT(DISTINCT affiliate_id)::int AS count FROM benefits WHERE status = 'active'
+    `),
+    db.execute(sql`
+      SELECT COUNT(*)::int AS count
+      FROM affiliate_credit_summary
+      WHERE available_amount <= 0 AND gross_salary IS NOT NULL AND status = 'active'
+    `),
+  ]);
+
+  const inst = instRes.rows[0] as {
+    total_to_collect: string; collected: string; outstanding: string;
+    overdue_amt: string; pending_amt: string; overdue_count: number;
+    due_collected: number; due_total: number;
+  };
+  const ben = benRes.rows[0] as {
+    capital_lent: string; profit_total: string;
+    active_benefits: number; finished_benefits: number;
+  };
+
+  const totalToCollect = Number(inst.total_to_collect);
+  const collected = Number(inst.collected);
+  const profitTotal = Number(ben.profit_total);
+  const collectedRatio = totalToCollect > 0 ? collected / totalToCollect : 0;
+
+  return {
+    totalAffiliates: affActive[0]?.count ?? 0,
+    affiliatesWithActiveBenefit: (affWithBenefit.rows[0] as { count: number })?.count ?? 0,
+    affiliatesWithoutCredit: (noCredit.rows[0] as { count: number })?.count ?? 0,
+    activeBenefits: ben.active_benefits,
+    finishedBenefits: ben.finished_benefits,
+    capitalLent: roundMoney(Number(ben.capital_lent)),
+    totalToCollect: roundMoney(totalToCollect),
+    collected: roundMoney(collected),
+    outstanding: roundMoney(Number(inst.outstanding)),
+    overdue: roundMoney(Number(inst.overdue_amt)),
+    overdueCount: inst.overdue_count,
+    pending: roundMoney(Number(inst.pending_amt)),
+    profitTotal: roundMoney(profitTotal),
+    profitCollected: roundMoney(profitTotal * collectedRatio),
+    complianceScore: inst.due_total > 0 ? Math.round((inst.due_collected / inst.due_total) * 100) : null,
+  };
+}

@@ -7,6 +7,7 @@ import {
   getMonthlyHistory,
   getDashboardGlobals,
   getBenefitBreakdowns,
+  getUnionOverview,
 } from "@/lib/services/dashboard.service";
 import { DashboardClient } from "./dashboard-client";
 
@@ -27,12 +28,13 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const label = format(monthDate, "MMMM yyyy", { locale: es });
   const periodLabel = label.charAt(0).toUpperCase() + label.slice(1);
 
-  const [summary, pendingInstallments, monthlyHistory, globals, breakdowns] = await Promise.all([
+  const [summary, pendingInstallments, monthlyHistory, globals, breakdowns, overview] = await Promise.all([
     getDashboardSummary(month, year),
     getPendingInstallmentsForPeriod(month, year, 50),
     getMonthlyHistory(6),
     getDashboardGlobals(),
     getBenefitBreakdowns(month, year),
+    getUnionOverview(),
   ]);
 
   return (
@@ -45,6 +47,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       monthlyHistory={monthlyHistory}
       globals={globals}
       breakdowns={breakdowns}
+      overview={overview}
     />
   );
 }

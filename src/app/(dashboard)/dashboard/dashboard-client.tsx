@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { InstallmentStatusBadge, BenefitTypeBadge } from "@/components/ui/badge";
 import { SensitiveText, SensitiveValue } from "@/components/privacy/sensitive-value";
 import { DashboardCharts } from "@/components/dashboard/dashboard-charts";
+import { UnionOverview } from "@/components/dashboard/union-overview";
 import { formatCurrencyARS } from "@/lib/utils/currency";
 import { formatDate } from "@/lib/utils/date";
 import type {
@@ -20,6 +21,7 @@ import type {
   MonthlyHistoryRow,
   DashboardGlobals,
   DashboardBreakdowns,
+  UnionOverview as UnionOverviewData,
 } from "@/lib/services/dashboard.service";
 
 interface DashboardClientProps {
@@ -31,6 +33,7 @@ interface DashboardClientProps {
   monthlyHistory: MonthlyHistoryRow[];
   globals: DashboardGlobals;
   breakdowns: DashboardBreakdowns;
+  overview: UnionOverviewData;
 }
 
 const MONTHS = [
@@ -42,7 +45,7 @@ export function DashboardClient({
   initialMonth, initialYear, periodLabel,
   summary: initSummary, pendingInstallments: initPending,
   monthlyHistory: initHistory, globals,
-  breakdowns: initBreakdowns,
+  breakdowns: initBreakdowns, overview,
 }: DashboardClientProps) {
   const router = useRouter();
   const [month, setMonth] = useState(initialMonth);
@@ -130,6 +133,17 @@ export function DashboardClient({
           </p>
         </div>
       )}
+
+      {/* ── Estado general del sindicato (global) ── */}
+      <UnionOverview overview={overview} />
+
+      {/* ── Análisis por período ── */}
+      <div className="pt-2">
+        <h2 className="text-base font-semibold text-[hsl(var(--foreground))]">Análisis por período</h2>
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">
+          Elegí un mes para ver el detalle de ese período.
+        </p>
+      </div>
 
       {/* ── Selector de período ── */}
       <Card>

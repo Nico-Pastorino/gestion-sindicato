@@ -10,7 +10,6 @@ import {
   Building2,
   ChevronRight,
   HandCoins,
-  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
@@ -27,7 +26,6 @@ const navItems: NavItem[] = [
   { href: "/beneficios",      label: "Beneficios",     icon: Gift },
   { href: "/cobranzas",       label: "Cobranzas",      icon: HandCoins },
   { href: "/exportar",        label: "Exportar",       icon: FileDown },
-  { href: "/auditoria",       label: "Auditoría",      icon: ScrollText },
 ];
 
 
