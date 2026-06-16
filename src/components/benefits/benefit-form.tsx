@@ -329,7 +329,7 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
                         </p>
                       </div>
                       <div className="text-right shrink-0 ml-4">
-                        <p className="text-xs text-[hsl(var(--muted-foreground))]">Cupo mensual</p>
+                        <p className="text-xs text-[hsl(var(--muted-foreground))]">Disponible</p>
                         <p className={`text-sm font-semibold ${Number(a.availableAmount) <= 0 ? "text-red-600" : "text-green-600"}`}>
                           <SensitiveValue value={formatCurrencyARS(a.availableAmount)} />
                         </p>
@@ -350,11 +350,11 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
                   <p className="text-sm font-semibold"><SensitiveValue value={formatCurrencyARS(creditSummary.grossSalary)} /></p>
                 </div>
                 <div>
-                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Tope mensual 30%</p>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Máximo a descontar (30%)</p>
                   <p className="text-sm font-semibold text-blue-600"><SensitiveValue value={formatCurrencyARS(creditSummary.creditLimit30)} /></p>
                 </div>
                 <div>
-                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Cupo mensual libre</p>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Disponible para descontar</p>
                   <p className={`text-sm font-bold ${Number(creditSummary.availableAmount) <= 0 ? "text-red-600" : "text-green-600"}`}>
                     <SensitiveValue value={formatCurrencyARS(creditSummary.availableAmount)} />
                   </p>
@@ -568,7 +568,7 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
                 {hasConflicts ? (
                   <Alert variant="destructive" className="mb-4">
                     <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Tope mensual superado</AlertTitle>
+                    <AlertTitle>Supera el máximo del mes</AlertTitle>
                     <AlertDescription>
                       Supera el 30% en {projection.conflicts.length} mes{projection.conflicts.length !== 1 ? "es" : ""}. No se puede guardar.
                     </AlertDescription>
@@ -586,7 +586,7 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
                     <thead>
                       <tr className="border-b text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
                         <th className="text-left py-2 pr-3 font-semibold">Mes</th>
-                        <th className="text-right py-2 px-3 font-semibold">Tope 30%</th>
+                        <th className="text-right py-2 px-3 font-semibold">Máximo (30%)</th>
                         <th className="text-right py-2 px-3 font-semibold">Ya comprometido</th>
                         <th className="text-right py-2 px-3 font-semibold">Nueva cuota</th>
                         <th className="text-right py-2 px-3 font-semibold">Total</th>

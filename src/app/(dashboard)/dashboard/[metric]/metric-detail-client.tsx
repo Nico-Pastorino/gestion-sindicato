@@ -60,7 +60,7 @@ export function MetricDetailClient({ metric, title, subtitle, initialMonth, init
           className="inline-flex items-center gap-1.5 text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] mb-3 transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
-          Volver al Dashboard
+          Volver a Inicio
         </Link>
         <h1 className="text-2xl font-bold">{title}</h1>
         <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">{subtitle}</p>
@@ -306,7 +306,7 @@ function CobradoView({ data, month, year }: { data: CobradoData; month: number; 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <SummaryCard label="Total cobrado" value={formatCurrencyARS(data.totalPaid)} accent="green" />
         <SummaryCard label="Cuotas cobradas" value={String(data.installmentsCount)} />
-        <SummaryCard label="Ganancia cobrada" value={formatCurrencyARS(data.earnedInterest)} accent="orange" />
+        <SummaryCard label="Interés cobrado" value={formatCurrencyARS(data.earnedInterest)} accent="orange" />
         <SummaryCard label="Último cobro" value={data.lastPaymentDate ? formatDate(data.lastPaymentDate) : "—"} />
       </div>
 
@@ -456,12 +456,12 @@ function FaltaCobrarView({ data, month, year }: { data: FaltaCobrarData; month: 
 
 function GananciaEstimadaView({ data, month, year }: { data: GananciaEstimadaData; month: number; year: number }) {
   if (!data || data.benefitsCount === 0) {
-    return <EmptyState message="No hay ganancia registrada en este período." />;
+    return <EmptyState message="No hay interés registrado en este período." />;
   }
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <SummaryCard label="Ganancia estimada" value={formatCurrencyARS(data.totalProfit)} accent="orange" />
+        <SummaryCard label="Interés total" value={formatCurrencyARS(data.totalProfit)} accent="orange" />
         <SummaryCard label="Capital entregado" value={formatCurrencyARS(data.totalCapital)} accent="blue" />
         <SummaryCard label="Total a devolver" value={formatCurrencyARS(data.totalRepayment)} />
         <SummaryCard label="Tasa promedio" value={`${data.avgRate.toFixed(2)}%`} sub="interés promedio" accent="orange" />
@@ -472,7 +472,7 @@ function GananciaEstimadaView({ data, month, year }: { data: GananciaEstimadaDat
         <CardContent className="pt-4 pb-4">
           <p className="text-sm font-medium">¿Cómo se calcula?</p>
           <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-            Ganancia = Total a devolver − Capital entregado.
+            Interés = Total a devolver − Capital entregado.
             Es el interés aplicado sobre cada beneficio otorgado.
           </p>
           <div className="mt-3 flex flex-wrap gap-4 text-sm">
@@ -480,12 +480,12 @@ function GananciaEstimadaView({ data, month, year }: { data: GananciaEstimadaDat
             <span className="text-[hsl(var(--muted-foreground))]">−</span>
             <span><span className="font-semibold"><SensitiveValue value={formatCurrencyARS(data.totalCapital)} /></span> <span className="text-[hsl(var(--muted-foreground))]">capital</span></span>
             <span className="text-[hsl(var(--muted-foreground))]">=</span>
-            <span className="font-bold text-orange-600"><SensitiveValue value={formatCurrencyARS(data.totalProfit)} /> ganancia</span>
+            <span className="font-bold text-orange-600"><SensitiveValue value={formatCurrencyARS(data.totalProfit)} /> de interés</span>
           </div>
         </CardContent>
       </Card>
 
-      <ByTypeSection title="Ganancia por tipo" items={data.byType} />
+      <ByTypeSection title="Interés por tipo" items={data.byType} />
 
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm">Beneficios con interés — {data.benefitsCount}</CardTitle></CardHeader>
@@ -497,7 +497,7 @@ function GananciaEstimadaView({ data, month, year }: { data: GananciaEstimadaDat
               <th className="text-left py-2 px-3 hidden md:table-cell">Tipo</th>
               <th className="text-right py-2 px-3">Capital</th>
               <th className="text-right py-2 px-3">Total devolver</th>
-              <th className="text-right py-2 px-3 font-semibold text-orange-600">Ganancia</th>
+              <th className="text-right py-2 px-3 font-semibold text-orange-600">Interés</th>
               <th className="text-right py-2 px-3 hidden md:table-cell">%</th>
               <th className="text-center py-2 px-3 hidden sm:table-cell">Cuotas</th>
               <th className="py-2 px-4" />
@@ -534,7 +534,7 @@ function GananciaEstimadaView({ data, month, year }: { data: GananciaEstimadaDat
 
 function GananciaPendienteView({ data, month, year }: { data: GananciaPendienteData; month: number; year: number }) {
   if (!data || data.totalEstimatedInterest === 0) {
-    return <EmptyState message="No hay ganancia pendiente en este período." />;
+    return <EmptyState message="No hay interés por cobrar en este período." />;
   }
   const earnedPercent = data.totalEstimatedInterest > 0
     ? Math.min(100, Math.round((data.totalEarnedInterest / data.totalEstimatedInterest) * 100))
@@ -543,10 +543,10 @@ function GananciaPendienteView({ data, month, year }: { data: GananciaPendienteD
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <SummaryCard label="Ganancia pendiente" value={formatCurrencyARS(data.totalPendingInterest)} accent="yellow" />
-        <SummaryCard label="Ganancia cobrada" value={formatCurrencyARS(data.totalEarnedInterest)} accent="green" />
-        <SummaryCard label="Ganancia total estimada" value={formatCurrencyARS(data.totalEstimatedInterest)} />
-        <SummaryCard label="Pendiente" value={`${data.pendingPercent}%`} sub="de la ganancia total" accent="yellow" />
+        <SummaryCard label="Interés por cobrar" value={formatCurrencyARS(data.totalPendingInterest)} accent="yellow" />
+        <SummaryCard label="Interés cobrado" value={formatCurrencyARS(data.totalEarnedInterest)} accent="green" />
+        <SummaryCard label="Interés total" value={formatCurrencyARS(data.totalEstimatedInterest)} />
+        <SummaryCard label="Pendiente" value={`${data.pendingPercent}%`} sub="del interés total" accent="yellow" />
       </div>
 
       {/* Barra de progreso */}
@@ -566,15 +566,15 @@ function GananciaPendienteView({ data, month, year }: { data: GananciaPendienteD
         </CardContent>
       </Card>
 
-      <ByTypeSection title="Ganancia pendiente por tipo" items={data.byType} />
+      <ByTypeSection title="Interés por cobrar, por tipo" items={data.byType} />
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Cuotas con ganancia pendiente — {data.pendingInstallmentsCount}</CardTitle>
+          <CardTitle className="text-sm">Cuotas con interés por cobrar — {data.pendingInstallmentsCount}</CardTitle>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           {data.rows.length === 0 ? (
-            <div className="py-8 text-center text-sm text-[hsl(var(--muted-foreground))]">Sin cuotas con ganancia pendiente.</div>
+            <div className="py-8 text-center text-sm text-[hsl(var(--muted-foreground))]">Sin cuotas con interés por cobrar.</div>
           ) : (
             <table className="w-full text-sm">
               <thead><tr className="border-b text-xs uppercase text-[hsl(var(--muted-foreground))]">

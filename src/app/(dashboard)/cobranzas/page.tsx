@@ -92,7 +92,7 @@ export default async function CobranzasPage({ searchParams }: PageProps) {
         <Button variant="outline" asChild>
           <Link href="/cobranzas/conciliacion">
             <ClipboardCheck className="h-4 w-4" />
-            Conciliación mensual
+            Revisar cobros del mes
           </Link>
         </Button>
       </div>

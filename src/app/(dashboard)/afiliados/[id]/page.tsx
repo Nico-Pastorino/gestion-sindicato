@@ -186,7 +186,7 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
         <Card>
           <CardContent className="p-5">
             <p className="text-xs font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
-              Tope Mensual 30%
+              Máximo a descontar por mes (30% del sueldo)
             </p>
             <p className="text-xl font-bold mt-1 text-blue-600">
               {credit?.creditLimit30 != null
@@ -198,7 +198,7 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
         <Card>
           <CardContent className="p-5">
             <p className="text-xs font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
-              Descuentos Activos
+              Ya comprometido este mes
             </p>
             <p className="text-xl font-bold mt-1 text-yellow-600">
               <SensitiveValue value={formatCurrency(credit?.activeDiscounts ?? "0")} />
@@ -208,7 +208,7 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
         <Card className="border-2 border-green-200">
           <CardContent className="p-5">
             <p className="text-xs font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
-              Cupo Mensual Libre
+              Disponible para descontar
             </p>
             <p className="text-xl font-bold mt-1 text-green-600">
               {credit?.availableAmount != null
@@ -327,7 +327,7 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <AggMetric label="Capital entregado" value={<SensitiveValue value={formatCurrency(agg.principalAmount)} />} />
               <AggMetric label="Total a devolver" value={<SensitiveValue value={formatCurrency(agg.totalRepaymentAmount)} />} />
-              <AggMetric label="Ganancia total" value={<SensitiveValue value={formatCurrency(agg.interestAmount)} />} accent="orange" />
+              <AggMetric label="Interés total" value={<SensitiveValue value={formatCurrency(agg.interestAmount)} />} accent="orange" />
               <AggMetric
                 label="Beneficios activos / finalizados"
                 value={`${activeBenefits.length} / ${finishedBenefits.length}`}
@@ -337,8 +337,8 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <AggMetric label="Cobrado" value={<SensitiveValue value={formatCurrency(agg.paidAmount)} />} accent="green" />
               <AggMetric label="Pendiente de cobro" value={<SensitiveValue value={formatCurrency(agg.pendingAmount)} />} accent="yellow" />
-              <AggMetric label="Ganancia cobrada" value={<SensitiveValue value={formatCurrency(agg.earnedInterestAmount)} />} accent="green" />
-              <AggMetric label="Ganancia pendiente" value={<SensitiveValue value={formatCurrency(agg.pendingInterestAmount)} />} accent="yellow" />
+              <AggMetric label="Interés cobrado" value={<SensitiveValue value={formatCurrency(agg.earnedInterestAmount)} />} accent="green" />
+              <AggMetric label="Interés por cobrar" value={<SensitiveValue value={formatCurrency(agg.pendingInterestAmount)} />} accent="yellow" />
             </div>
           </CardContent>
         </Card>

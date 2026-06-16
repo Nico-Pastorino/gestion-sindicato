@@ -97,7 +97,7 @@ export function DashboardClient({
       {/* ── Header ── */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <h1 className="text-2xl font-bold">Inicio</h1>
           <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
             Resumen del sistema sindical
           </p>
@@ -129,7 +129,7 @@ export function DashboardClient({
           <AlertTriangle className="h-5 w-5 text-yellow-600 shrink-0" />
           <p className="text-sm text-yellow-800">
             <strong>{globals.affiliatesWithoutCredit} afiliado{globals.affiliatesWithoutCredit !== 1 ? "s" : ""}</strong>{" "}
-            sin cupo mensual disponible.
+            sin disponible para nuevos descuentos este mes.
           </p>
         </div>
       )}
@@ -255,16 +255,16 @@ export function DashboardClient({
             href={`/dashboard/ganancia-estimada?${p}`}
             icon={<TrendingUp className="h-5 w-5 text-orange-600" />}
             iconBg="bg-orange-50"
-            label="Ganancia estimada"
+            label="Interés total"
             value={<SensitiveValue value={formatCurrencyARS(summary.estimatedProfit)} />}
             sub="interés total del período"
-            description="Ganancia por intereses aplicados"
+            description="Interés aplicado a los beneficios"
           />
           <ClickCard
             href={`/dashboard/ganancia-pendiente?${p}`}
             icon={<DollarSign className="h-5 w-5 text-teal-600" />}
             iconBg="bg-teal-50"
-            label="Ganancia pendiente"
+            label="Interés por cobrar"
             value={<SensitiveValue value={formatCurrencyARS(summary.pendingProfit)} />}
             sub="interés aún no cobrado"
             description="Parte del interés que falta cobrar"
@@ -281,7 +281,7 @@ export function DashboardClient({
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-orange-600" />
-              Ganancia del sindicato
+              Interés del sindicato
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -314,7 +314,7 @@ export function DashboardClient({
               </div>
             </div>
             <p className="text-xs text-[hsl(var(--muted-foreground))]">
-              La ganancia se calcula a partir del interés aplicado a los beneficios otorgados.
+              El interés se calcula sobre los beneficios otorgados en el período.
             </p>
           </CardContent>
         </Card>
@@ -410,9 +410,9 @@ export function DashboardClient({
                   <th className="text-left py-2.5 px-4 font-semibold">Mes</th>
                   <th className="text-right py-2.5 px-3 font-semibold">Beneficios</th>
                   <th className="text-right py-2.5 px-3 font-semibold">Capital entregado</th>
-                  <th className="text-right py-2.5 px-3 font-semibold hidden md:table-cell">Ganancia estimada</th>
-                  <th className="text-right py-2.5 px-3 font-semibold hidden md:table-cell">Ganancia cobrada</th>
-                  <th className="text-right py-2.5 px-3 font-semibold hidden lg:table-cell">Ganancia pendiente</th>
+                  <th className="text-right py-2.5 px-3 font-semibold hidden md:table-cell">Interés total</th>
+                  <th className="text-right py-2.5 px-3 font-semibold hidden md:table-cell">Interés cobrado</th>
+                  <th className="text-right py-2.5 px-3 font-semibold hidden lg:table-cell">Interés por cobrar</th>
                   <th className="text-right py-2.5 px-3 font-semibold">Falta cobrar</th>
                 </tr>
               </thead>

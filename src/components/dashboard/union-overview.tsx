@@ -55,11 +55,11 @@ export function UnionOverview({ overview }: { overview: UnionOverviewData }) {
           href="/cobranzas"
           icon={<Wallet className="h-5 w-5 text-indigo-600" />}
           iconBg="bg-indigo-50"
-          label="Capital en la calle"
+          label="Falta cobrar (total)"
           value={<SensitiveValue value={formatCurrencyARS(o.outstanding)} />}
           subNode={
             <>
-              de <SensitiveValue value={formatCurrencyARS(o.totalToCollect)} /> a cobrar
+              de <SensitiveValue value={formatCurrencyARS(o.totalToCollect)} /> en total (capital + interés)
             </>
           }
         />
@@ -97,10 +97,10 @@ export function UnionOverview({ overview }: { overview: UnionOverviewData }) {
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-semibold flex items-center gap-2">
               <HandCoins className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
-              Composición de la cartera
+              ¿Cómo viene la cobranza?
             </p>
             <p className="text-xs text-[hsl(var(--muted-foreground))]">
-              Total a cobrar: <SensitiveValue value={formatCurrencyARS(o.totalToCollect)} />
+              Total a cobrar (capital + interés): <SensitiveValue value={formatCurrencyARS(o.totalToCollect)} />
             </p>
           </div>
 
@@ -127,12 +127,12 @@ export function UnionOverview({ overview }: { overview: UnionOverviewData }) {
             />
             <MiniStat
               icon={<TrendingUp className="h-4 w-4 text-orange-500" />}
-              label="Ganancia acumulada"
+              label="Interés acumulado"
               value={<SensitiveValue value={formatCurrencyARS(o.profitTotal)} />}
             />
             <MiniStat
               icon={<TrendingUp className="h-4 w-4 text-green-600" />}
-              label="Ganancia cobrada"
+              label="Interés cobrado"
               value={<SensitiveValue value={formatCurrencyARS(o.profitCollected)} />}
             />
           </div>

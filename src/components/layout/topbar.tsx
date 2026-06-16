@@ -205,7 +205,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
         variant={hidden ? "default" : "ghost"}
         size="icon"
         onClick={toggleHidden}
-        title={hidden ? "Mostrar montos" : "Ocultar montos (modo demo)"}
+        title={hidden ? "Mostrar los importes" : "Ocultar los importes"}
       >
         {hidden ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
         <span className="sr-only">

@@ -90,8 +90,8 @@ export default async function ReporteMensualPage({ searchParams }: PageProps) {
           <Metric label="Total a cobrar" value={formatCurrencyARS(summary.totalToCollect)} sub="capital + intereses" />
           <Metric label="Cobrado" value={formatCurrencyARS(summary.paidAmount)} accent="green" sub={`${summary.paidInstallmentsCount} cuotas`} />
           <Metric label="Falta cobrar" value={formatCurrencyARS(summary.pendingToCollect)} accent="yellow" sub={`${summary.pendingInstallmentsCount} cuotas`} />
-          <Metric label="Ganancia estimada" value={formatCurrencyARS(summary.estimatedProfit)} accent="orange" />
-          <Metric label="Ganancia cobrada" value={formatCurrencyARS(summary.collectedProfit)} accent="green" />
+          <Metric label="Interés total" value={formatCurrencyARS(summary.estimatedProfit)} accent="orange" />
+          <Metric label="Interés cobrado" value={formatCurrencyARS(summary.collectedProfit)} accent="green" />
         </div>
 
         {/* Distribución por tipo */}

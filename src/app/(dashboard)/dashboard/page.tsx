@@ -11,7 +11,7 @@ import {
 } from "@/lib/services/dashboard.service";
 import { DashboardClient } from "./dashboard-client";
 
-export const metadata: Metadata = { title: "Dashboard" };
+export const metadata: Metadata = { title: "Inicio" };
 export const dynamic = "force-dynamic";
 
 interface PageProps {

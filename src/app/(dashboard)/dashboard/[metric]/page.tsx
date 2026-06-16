@@ -25,8 +25,8 @@ const METRIC_TITLES: Record<ValidMetric, { title: string; subtitle: string }> = 
   "total-a-cobrar":     { title: "Total a cobrar",      subtitle: "Cuotas generadas por beneficios del período" },
   "cobrado":            { title: "Cobrado hasta ahora", subtitle: "Cuotas efectivamente cobradas" },
   "falta-cobrar":       { title: "Falta cobrar",        subtitle: "Cuotas pendientes y vencidas" },
-  "ganancia-estimada":  { title: "Ganancia estimada",   subtitle: "Intereses generados por beneficios del período" },
-  "ganancia-pendiente": { title: "Ganancia pendiente",  subtitle: "Intereses aún no cobrados" },
+  "ganancia-estimada":  { title: "Interés total",       subtitle: "Intereses generados por beneficios del período" },
+  "ganancia-pendiente": { title: "Interés por cobrar",  subtitle: "Intereses aún no cobrados" },
 };
 
 interface PageProps {

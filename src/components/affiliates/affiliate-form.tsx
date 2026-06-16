@@ -478,7 +478,7 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
               <div className="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-blue-700 font-medium">
-                    Tope mensual 30%
+                    Máximo a descontar por mes (30%)
                   </span>
                   <span className="text-blue-800 font-bold text-base">
                     {formatCurrency(creditLimit)}

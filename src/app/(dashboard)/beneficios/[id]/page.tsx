@@ -223,12 +223,12 @@ export default async function BenefitDetailPage({ params }: PageProps) {
               accent={fin.pendingInstallmentsCount > 0 ? "yellow" : undefined}
             />
             <FinMetric
-              label="Ganancia cobrada"
+              label="Interés cobrado"
               value={<SensitiveValue value={formatCurrency(fin.earnedInterestAmount)} />}
               accent="green"
             />
             <FinMetric
-              label="Ganancia pendiente"
+              label="Interés por cobrar"
               value={<SensitiveValue value={formatCurrency(fin.pendingInterestAmount)} />}
               accent={fin.pendingInterestAmount > 0 ? "yellow" : undefined}
             />
