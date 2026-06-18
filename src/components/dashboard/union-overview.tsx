@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   Users,
   Wallet,
@@ -10,16 +9,16 @@ import {
   HandCoins,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { MetricCard, type MetricTone } from "@/components/dashboard/metric-card";
 import { SensitiveValue } from "@/components/privacy/sensitive-value";
 import { formatCurrencyARS } from "@/lib/utils/currency";
 import type { UnionOverview as UnionOverviewData } from "@/lib/services/dashboard.service";
 
-function complianceColor(score: number | null) {
-  if (score === null) return { text: "text-gray-500", bar: "bg-gray-300", bg: "bg-gray-50" };
-  if (score >= 95) return { text: "text-green-700", bar: "bg-green-500", bg: "bg-green-50" };
-  if (score >= 85) return { text: "text-emerald-700", bar: "bg-emerald-500", bg: "bg-emerald-50" };
-  if (score >= 70) return { text: "text-yellow-700", bar: "bg-yellow-500", bg: "bg-yellow-50" };
-  return { text: "text-red-700", bar: "bg-red-500", bg: "bg-red-50" };
+function complianceTone(score: number | null): MetricTone {
+  if (score === null) return "gray";
+  if (score >= 85) return "green";
+  if (score >= 70) return "yellow";
+  return "red";
 }
 
 export function UnionOverview({ overview }: { overview: UnionOverviewData }) {
@@ -28,7 +27,6 @@ export function UnionOverview({ overview }: { overview: UnionOverviewData }) {
   const pctCollected = Math.round((o.collected / total) * 100);
   const pctPending = Math.round((o.pending / total) * 100);
   const pctOverdue = Math.max(0, 100 - pctCollected - pctPending);
-  const comp = complianceColor(o.complianceScore);
 
   return (
     <section className="space-y-3">
@@ -43,52 +41,42 @@ export function UnionOverview({ overview }: { overview: UnionOverviewData }) {
 
       {/* Hero KPIs */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <HeroCard
+        <MetricCard
           href="/afiliados"
-          icon={<Users className="h-5 w-5 text-blue-600" />}
-          iconBg="bg-blue-50"
-          label="Afiliados activos"
+          tone="blue"
+          icon={Users}
+          title="Afiliados activos"
           value={String(o.totalAffiliates)}
-          sub={`${o.affiliatesWithActiveBenefit} con beneficio activo`}
+          subtitle={`${o.affiliatesWithActiveBenefit} con beneficio activo`}
         />
-        <HeroCard
+        <MetricCard
           href="/cobranzas"
-          icon={<Wallet className="h-5 w-5 text-indigo-600" />}
-          iconBg="bg-indigo-50"
-          label="Falta cobrar (total)"
+          tone="indigo"
+          icon={Wallet}
+          title="Falta cobrar (total)"
           value={<SensitiveValue value={formatCurrencyARS(o.outstanding)} />}
-          subNode={
+          subtitle={
             <>
               de <SensitiveValue value={formatCurrencyARS(o.totalToCollect)} /> en total (capital + interés)
             </>
           }
         />
-        <HeroCard
+        <MetricCard
           href="/cobranzas?status=overdue"
-          icon={<AlertTriangle className="h-5 w-5 text-red-600" />}
-          iconBg="bg-red-50"
-          label="En mora (vencido)"
+          tone="red"
+          icon={AlertTriangle}
+          title="En mora (vencido)"
           value={<SensitiveValue value={formatCurrencyARS(o.overdue)} />}
-          sub={`${o.overdueCount} cuota${o.overdueCount !== 1 ? "s" : ""} vencida${o.overdueCount !== 1 ? "s" : ""}`}
+          subtitle={`${o.overdueCount} cuota${o.overdueCount !== 1 ? "s" : ""} vencida${o.overdueCount !== 1 ? "s" : ""}`}
           alert={o.overdueCount > 0}
         />
-        <div className={`rounded-xl border p-4 ${comp.bg}`}>
-          <div className="flex items-start justify-between">
-            <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-white/70`}>
-              <Gauge className={`h-5 w-5 ${comp.text}`} />
-            </div>
-            <span className={`text-2xl font-bold ${comp.text}`}>
-              {o.complianceScore !== null ? `${o.complianceScore}%` : "—"}
-            </span>
-          </div>
-          <p className="mt-3 text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-            Cumplimiento global
-          </p>
-          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/70">
-            <div className={`h-full rounded-full ${comp.bar}`} style={{ width: `${o.complianceScore ?? 0}%` }} />
-          </div>
-          <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">cuotas vencidas cobradas</p>
-        </div>
+        <MetricCard
+          tone={complianceTone(o.complianceScore)}
+          icon={Gauge}
+          title="Cumplimiento global"
+          value={o.complianceScore !== null ? `${o.complianceScore}%` : "—"}
+          subtitle="cuotas vencidas cobradas"
+        />
       </div>
 
       {/* Composición de la cartera */}
@@ -139,31 +127,6 @@ export function UnionOverview({ overview }: { overview: UnionOverviewData }) {
         </CardContent>
       </Card>
     </section>
-  );
-}
-
-function HeroCard({
-  href, icon, iconBg, label, value, sub, subNode, alert = false,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  iconBg: string;
-  label: string;
-  value: React.ReactNode;
-  sub?: string;
-  subNode?: React.ReactNode;
-  alert?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`group block rounded-xl border bg-[hsl(var(--card))] p-4 transition-all hover:shadow-md hover:border-[hsl(var(--primary))]/30 ${alert ? "border-red-200 bg-red-50/40" : ""}`}
-    >
-      <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconBg}`}>{icon}</div>
-      <p className="mt-3 text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">{label}</p>
-      <p className={`mt-0.5 text-2xl font-bold ${alert ? "text-red-700" : ""}`}>{value}</p>
-      <p className="text-xs text-[hsl(var(--muted-foreground))]">{subNode ?? sub}</p>
-    </Link>
   );
 }
 
