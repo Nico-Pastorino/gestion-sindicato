@@ -8,42 +8,26 @@ import {
   MapPin,
   CreditCard,
   Gift,
-  Clock,
-  CheckCircle2,
-  TrendingUp,
   Hash,
   AlertTriangle,
   BriefcaseBusiness,
   UserRound,
-  Gauge,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  AffiliateStatusBadge,
-  BenefitStatusBadge,
-  BenefitTypeBadge,
-  CollectionMethodBadge,
-  InstallmentStatusBadge,
-} from "@/components/ui/badge";
-import { ActivityTimeline } from "@/components/audit/activity-timeline";
-import { CreditBar } from "@/components/shared/credit-bar";
-import { UnpayInstallmentButton } from "@/components/benefits/unpay-installment-button";
+import { AffiliateStatusBadge } from "@/components/ui/badge";
+import { SensitiveValue } from "@/components/privacy/sensitive-value";
 import { formatCurrency } from "@/lib/utils/credit";
 import { formatDate } from "@/lib/utils/date";
-import { getAffiliateById, getAffiliateCreditSummary } from "@/lib/services/affiliates.service";
-import { getAffiliateActivity } from "@/lib/services/audit.service";
-import { calculateBenefitFinancials, aggregateBenefitFinancials } from "@/lib/utils/financial";
+import {
+  formatEmploymentType,
+  formatSex,
+  formatDocumentationStatus,
+  formatAffiliateStatus,
+  isUuid,
+} from "@/lib/utils/labels";
+import { getAffiliateById } from "@/lib/services/affiliates.service";
 
 export const dynamic = "force-dynamic";
 
@@ -53,50 +37,25 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
+  if (!isUuid(id)) return { title: "Afiliado" };
   const data = await getAffiliateById(id);
   return { title: data ? data.fullName : "Afiliado" };
 }
 
 export default async function AffiliateDetailPage({ params }: PageProps) {
   const { id } = await params;
-
-  const [data, credit, activity] = await Promise.all([
-    getAffiliateById(id),
-    getAffiliateCreditSummary(id),
-    getAffiliateActivity(id),
-  ]);
+  if (!isUuid(id)) notFound();
+  const data = await getAffiliateById(id);
 
   if (!data) notFound();
 
   const hasSalary = data.grossSalary != null && Number(data.grossSalary) > 0;
-
-  const activeBenefits = data.benefits.filter((b) => b.status === "active");
-  const finishedBenefits = data.benefits.filter((b) => b.status === "finished");
-  const allInstallments = data.benefits.flatMap((b) => b.installments);
-  const pendingInstallments = allInstallments.filter(
-    (i) => i.status === "pending" || i.status === "overdue"
-  );
-  const paidInstallments = allInstallments.filter((i) => i.status === "paid");
-  const today = new Date().toISOString().split("T")[0];
-  const dueInstallmentsForScore = allInstallments.filter(
-    (i) => i.status !== "cancelled" && i.dueDate <= today
-  );
-  const paidDueInstallments = dueInstallmentsForScore.filter((i) => i.status === "paid");
-  const complianceRate = dueInstallmentsForScore.length > 0
-    ? Math.round((paidDueInstallments.length / dueInstallmentsForScore.length) * 100)
-    : 100;
-
-  // Resumen financiero agregado de todos los beneficios no cancelados
-  const nonCancelledBenefits = data.benefits.filter((b) => b.status !== "cancelled");
-  const allFinancials = nonCancelledBenefits.map((b) =>
-    calculateBenefitFinancials(b, b.installments)
-  );
-  const agg = aggregateBenefitFinancials(allFinancials);
+  const activeBenefitsCount = data.benefits.filter((b) => b.status === "active").length;
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
             <Link href="/afiliados">
@@ -134,12 +93,6 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
           </div>
         </div>
         <div className="flex gap-2 shrink-0">
-          <Button asChild>
-            <Link href={`/beneficios/nuevo?affiliateId=${data.id}`}>
-              <Gift className="h-4 w-4" />
-              Nuevo beneficio
-            </Link>
-          </Button>
           <Button variant="outline" asChild>
             <Link href={`/afiliados/${data.id}/editar`}>
               <Pencil className="h-4 w-4" />
@@ -149,13 +102,13 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Alerta salario pendiente */}
+      {/* Alerta sueldo pendiente (necesario para cargar beneficios) */}
       {!hasSalary && (
         <div className="flex items-center gap-3 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3">
           <AlertTriangle className="h-5 w-5 text-yellow-600 shrink-0" />
           <div className="text-sm text-yellow-800">
-            <strong>Salario bruto pendiente de carga.</strong>{" "}
-            Sin salario no se pueden cargar beneficios.{" "}
+            <strong>Sueldo bruto pendiente de carga.</strong>{" "}
+            Sin sueldo no se pueden cargar beneficios para este afiliado.{" "}
             <Link href={`/afiliados/${data.id}/editar`} className="underline font-medium">
               Completar ahora
             </Link>
@@ -163,50 +116,34 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Capacidad mensual y cumplimiento */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <CreditMetricCard
-          label="Salario bruto"
-          value={hasSalary ? formatCurrency(data.grossSalary!) : "Pendiente"}
-        />
-        <CreditMetricCard
-          label="Máximo a descontar por mes (30% del sueldo)"
-          value={credit?.creditLimit30 != null ? formatCurrency(credit.creditLimit30) : "Pendiente"}
-          tone="blue"
-        />
-        <CreditMetricCard
-          label="Ya comprometido este mes"
-          value={formatCurrency(credit?.activeDiscounts ?? "0")}
-          tone="amber"
-        />
-        <CreditMetricCard
-          label="Disponible para descontar"
-          value={credit?.availableAmount != null ? formatCurrency(credit.availableAmount) : "Pendiente"}
-          tone="green"
-          emphasized
-        />
-      </div>
+      {/* Referencia simple de beneficios (la gestión vive en Beneficios) */}
+      <Card className={activeBenefitsCount > 0 ? "border-purple-200 bg-purple-50/40" : ""}>
+        <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
+              <Gift className="h-5 w-5 text-purple-700" />
+            </div>
+            <div>
+              <p className="font-semibold">
+                {activeBenefitsCount > 0
+                  ? `Tiene ${activeBenefitsCount} beneficio${activeBenefitsCount !== 1 ? "s" : ""} activo${activeBenefitsCount !== 1 ? "s" : ""}`
+                  : "No tiene beneficios activos"}
+              </p>
+              <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                Las cuotas, el tope del 30% y la carga de beneficios se manejan en el módulo Beneficios.
+              </p>
+            </div>
+          </div>
+          <Button asChild>
+            <Link href={`/beneficios/afiliado/${data.id}`}>
+              Ver beneficios del afiliado
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
 
-      {credit && hasSalary && (
-        <Card>
-          <CardContent className="p-5">
-            <CreditBar
-              grossSalary={credit.grossSalary ?? "0"}
-              creditLimit30={credit.creditLimit30 ?? "0"}
-              activeDiscounts={credit.activeDiscounts}
-              availableAmount={credit.availableAmount ?? "0"}
-              showLabels
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      <PaymentComplianceCard
-        rate={complianceRate}
-        paid={paidDueInstallments.length}
-        total={dueInstallmentsForScore.length}
-      />
-
+      {/* Datos personales y laborales */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-3">
@@ -224,7 +161,7 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
             <InfoItem label="Teléfono" value={data.phone ?? "Sin dato"} />
             <InfoItem label="Teléfono alternativo" value={data.alternatePhone ?? "Sin dato"} />
             <InfoItem label="Email" value={data.email ?? "Sin dato"} />
-            <InfoItem label="Estado" value={data.status === "active" ? "Activo" : "Inactivo"} />
+            <InfoItem label="Estado" value={formatAffiliateStatus(data.status)} />
           </CardContent>
         </Card>
         <Card>
@@ -243,6 +180,11 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
             <InfoItem label="Fecha de ingreso" value={data.hireDate ? formatDate(data.hireDate) : "Sin dato"} />
             <InfoItem label="Antigüedad" value={data.hireDate ? calculateSeniority(data.hireDate) : "Sin dato"} />
             <InfoItem label="Afiliado desde" value={data.affiliationDate ? formatDate(data.affiliationDate) : "Sin dato"} />
+            <InfoItem
+              label="Sueldo bruto"
+              value={hasSalary ? undefined : "Pendiente de carga"}
+              sensitiveValue={hasSalary ? formatCurrency(data.grossSalary!) : undefined}
+            />
           </CardContent>
         </Card>
       </div>
@@ -282,394 +224,27 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
           </CardContent>
         </Card>
       </div>
-
-      {/* Resumen financiero agregado */}
-      {nonCancelledBenefits.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Resumen financiero del afiliado
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <AggMetric label="Capital entregado" value={formatCurrency(agg.principalAmount)} />
-              <AggMetric label="Total a devolver" value={formatCurrency(agg.totalRepaymentAmount)} />
-              <AggMetric label="Ganancia total" value={formatCurrency(agg.interestAmount)} accent="orange" />
-              <AggMetric
-                label="Beneficios activos / finalizados"
-                value={`${activeBenefits.length} / ${finishedBenefits.length}`}
-              />
-            </div>
-            <Separator className="my-4" />
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <AggMetric label="Cobrado" value={formatCurrency(agg.paidAmount)} accent="green" />
-              <AggMetric label="Pendiente de cobro" value={formatCurrency(agg.pendingAmount)} accent="yellow" />
-              <AggMetric label="Ganancia cobrada" value={formatCurrency(agg.earnedInterestAmount)} accent="green" />
-              <AggMetric label="Ganancia pendiente" value={formatCurrency(agg.pendingInterestAmount)} accent="yellow" />
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Tabs */}
-      <Tabs defaultValue="activos">
-        <TabsList>
-          <TabsTrigger value="activos">
-            Beneficios activos
-            {activeBenefits.length > 0 && (
-              <span className="ml-1.5 rounded-full bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5">
-                {activeBenefits.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="pendientes">
-            Cuotas pendientes
-            {pendingInstallments.length > 0 && (
-              <span className="ml-1.5 rounded-full bg-yellow-100 text-yellow-700 text-xs px-1.5 py-0.5">
-                {pendingInstallments.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="pagadas">
-            Cuotas pagadas
-            {paidInstallments.length > 0 && (
-              <span className="ml-1.5 rounded-full bg-green-100 text-green-700 text-xs px-1.5 py-0.5">
-                {paidInstallments.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="historial">Historial</TabsTrigger>
-          <TabsTrigger value="actividad">
-            Actividad
-            {activity.length > 0 && (
-              <span className="ml-1.5 rounded-full bg-slate-100 text-slate-700 text-xs px-1.5 py-0.5">
-                {activity.length}
-              </span>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="activos">
-          <Card>
-            <CardContent className="p-0">
-              {activeBenefits.length === 0 ? (
-                <EmptyState
-                  icon={<Gift className="h-8 w-8" />}
-                  title="Sin beneficios activos"
-                  description="Este afiliado no tiene beneficios activos."
-                  action={
-                    <Button size="sm" asChild>
-                      <Link href={`/beneficios/nuevo?affiliateId=${data.id}`}>
-                        <Gift className="h-4 w-4" />
-                        Nuevo beneficio
-                      </Link>
-                    </Button>
-                  }
-                />
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Beneficio</TableHead>
-                      <TableHead className="hidden md:table-cell">Fecha</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead className="hidden sm:table-cell">Capital</TableHead>
-                      <TableHead>Cuota</TableHead>
-                      <TableHead className="hidden md:table-cell">Cuotas</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead className="text-right">Ver</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {activeBenefits.map((b) => {
-                      const paidCount = b.installments.filter((i) => i.status === "paid").length;
-                      return (
-                        <TableRow key={b.id}>
-                          <TableCell className="font-medium">{b.commerce ?? "—"}</TableCell>
-                          <TableCell className="hidden md:table-cell text-sm">{formatDate(b.date)}</TableCell>
-                          <TableCell>
-                            <BenefitTypeBadge type={b.type as "ayuda_economica" | "supermercado" | "otro"} />
-                          </TableCell>
-                          <TableCell className="hidden sm:table-cell text-sm">{formatCurrency(b.totalAmount)}</TableCell>
-                          <TableCell className="text-sm font-medium">{formatCurrency(b.installmentAmount)}</TableCell>
-                          <TableCell className="hidden md:table-cell text-sm text-[hsl(var(--muted-foreground))]">
-                            {paidCount}/{b.installmentsCount}
-                          </TableCell>
-                          <TableCell>
-                            <BenefitStatusBadge status={b.status as "active" | "cancelled" | "finished"} />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" asChild>
-                              <Link href={`/beneficios/${b.id}`}>Ver</Link>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="pendientes">
-          <Card>
-            <CardContent className="p-0">
-              {pendingInstallments.length === 0 ? (
-                <EmptyState
-                  icon={<Clock className="h-8 w-8" />}
-                  title="Sin cuotas pendientes"
-                  description="No hay cuotas pendientes de pago."
-                />
-              ) : (
-                <InstallmentsTable
-                  installments={pendingInstallments.map((i) => {
-                    const benefit = data.benefits.find((b) => b.id === i.benefitId);
-                    return { ...i, benefit };
-                  })}
-                />
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="pagadas">
-          <Card>
-            <CardContent className="p-0">
-              {paidInstallments.length === 0 ? (
-                <EmptyState
-                  icon={<CheckCircle2 className="h-8 w-8" />}
-                  title="Sin cuotas pagadas"
-                  description="No hay cuotas pagadas aún."
-                />
-              ) : (
-                <InstallmentsTable
-                  installments={paidInstallments.map((i) => {
-                    const benefit = data.benefits.find((b) => b.id === i.benefitId);
-                    return { ...i, benefit };
-                  })}
-                />
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="historial">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Historial de beneficios
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {data.benefits.length === 0 ? (
-                <p className="text-sm text-center text-[hsl(var(--muted-foreground))] py-8">
-                  Sin beneficios registrados.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {[...data.benefits]
-                    .sort((a, b) => b.date.localeCompare(a.date))
-                    .map((b) => (
-                      <div
-                        key={b.id}
-                        className="flex items-center justify-between rounded-lg border p-3 gap-3"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <BenefitTypeBadge type={b.type as "ayuda_economica" | "supermercado" | "otro"} />
-                            <span className="text-sm font-medium truncate">
-                              {b.commerce ?? "Sin comercio"}
-                            </span>
-                          </div>
-                          <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1">
-                            {formatDate(b.date)} · {b.installmentsCount} cuota{b.installmentsCount !== 1 ? "s" : ""} de {formatCurrency(b.installmentAmount)}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-sm font-semibold">{formatCurrency(b.totalAmount)}</span>
-                          <BenefitStatusBadge status={b.status as "active" | "cancelled" | "finished"} />
-                          <Button variant="ghost" size="sm" asChild>
-                            <Link href={`/beneficios/${b.id}`}>Ver</Link>
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="actividad">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Actividad del afiliado
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ActivityTimeline items={activity} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }
 
-function CreditMetricCard({
+function InfoItem({
   label,
   value,
-  tone,
-  emphasized = false,
+  sensitiveValue,
 }: {
   label: string;
-  value: string;
-  tone?: "blue" | "amber" | "green";
-  emphasized?: boolean;
+  value?: string;
+  sensitiveValue?: string;
 }) {
-  const toneClass = {
-    blue: "text-blue-600",
-    amber: "text-amber-600",
-    green: "text-green-600",
-  }[tone ?? "blue"];
-
-  return (
-    <Card className={emphasized ? "border-2 border-green-200" : ""}>
-      <CardContent className="p-5">
-        <p className="min-h-8 text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-          {label}
-        </p>
-        <p className={`mt-1 text-2xl font-bold leading-tight ${tone ? toneClass : ""}`}>
-          {value}
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function PaymentComplianceCard({
-  rate,
-  paid,
-  total,
-}: {
-  rate: number;
-  paid: number;
-  total: number;
-}) {
-  const label = total === 0
-    ? "Sin vencimientos"
-    : rate >= 95
-      ? "Excelente"
-      : rate >= 75
-        ? "Bueno"
-        : rate >= 50
-          ? "Regular"
-          : "Crítico";
-  const tone = rate >= 95 ? "green" : rate >= 75 ? "blue" : rate >= 50 ? "amber" : "red";
-  const color = {
-    green: "text-green-700 bg-green-50 border-green-200",
-    blue: "text-blue-700 bg-blue-50 border-blue-200",
-    amber: "text-amber-700 bg-amber-50 border-amber-200",
-    red: "text-red-700 bg-red-50 border-red-200",
-  }[tone];
-  const bar = {
-    green: "bg-green-500",
-    blue: "bg-blue-500",
-    amber: "bg-amber-500",
-    red: "bg-red-500",
-  }[tone];
-
-  return (
-    <Card>
-      <CardContent className="space-y-4 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
-              <Gauge className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-base font-semibold">Cumplimiento de pagos</h2>
-                <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${color}`}>
-                  {label}
-                </span>
-              </div>
-              <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                {paid} de {total} cuotas vencidas cobradas
-              </p>
-            </div>
-          </div>
-          <p className={`text-3xl font-bold ${tone === "red" ? "text-red-700" : tone === "amber" ? "text-amber-700" : tone === "blue" ? "text-blue-700" : "text-green-700"}`}>
-            {rate}%
-          </p>
-        </div>
-        <div className="h-2.5 w-full rounded-full bg-[hsl(var(--muted))]">
-          <div className={`h-2.5 rounded-full ${bar}`} style={{ width: `${rate}%` }} />
-        </div>
-        <p className="text-xs text-[hsl(var(--muted-foreground))]">
-          Porcentaje de cuotas ya vencidas que se cobraron por retención municipal o cobro manual.
-          No incluye cuotas por vencer ni canceladas.
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function AggMetric({ label, value, accent }: { label: string; value: string; accent?: "green" | "yellow" | "orange" }) {
-  const colors = { green: "text-green-700", yellow: "text-yellow-700", orange: "text-orange-600" };
-  return (
-    <div className="space-y-0.5">
-      <p className="text-xs text-[hsl(var(--muted-foreground))]">{label}</p>
-      <p className={`text-sm font-semibold ${accent ? colors[accent] : ""}`}>{value}</p>
-    </div>
-  );
-}
-
-function InfoItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border bg-[hsl(var(--muted))]/25 px-3 py-2">
       <p className="text-xs text-[hsl(var(--muted-foreground))]">{label}</p>
-      <p className="mt-0.5 text-sm font-semibold">{value}</p>
+      <p className="mt-0.5 text-sm font-semibold">
+        {sensitiveValue != null ? <SensitiveValue value={sensitiveValue} /> : value}
+      </p>
     </div>
   );
-}
-
-function formatSex(value?: string | null) {
-  const labels: Record<string, string> = {
-    masculino: "Masculino",
-    femenino: "Femenino",
-    otro: "Otro",
-    prefiero_no_responder: "Prefiere no responder",
-  };
-
-  return value ? labels[value] ?? value : "Sin dato";
-}
-
-function formatEmploymentType(value?: string | null) {
-  const labels: Record<string, string> = {
-    planta_permanente: "Planta Permanente",
-    planta_temporaria: "Planta Temporaria",
-    jubilado: "Jubilado",
-  };
-
-  return value ? labels[value] ?? value : "Sin dato";
-}
-
-function formatDocumentationStatus(value?: string | null) {
-  const labels: Record<string, string> = {
-    complete: "Completa",
-    pending: "Pendiente",
-    missing: "Faltante",
-  };
-
-  return value ? labels[value] ?? value : "Pendiente";
 }
 
 function calculateSeniority(hireDate: string) {
@@ -690,87 +265,4 @@ function calculateSeniority(hireDate: string) {
   if (years <= 0) return `${months} mes${months !== 1 ? "es" : ""}`;
   if (months <= 0) return `${years} año${years !== 1 ? "s" : ""}`;
   return `${years} año${years !== 1 ? "s" : ""} y ${months} mes${months !== 1 ? "es" : ""}`;
-}
-
-function EmptyState({ icon, title, description, action }: {
-  icon: React.ReactNode; title: string; description: string; action?: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-3 py-12 text-center">
-      <div className="text-[hsl(var(--muted-foreground))] opacity-40">{icon}</div>
-      <div>
-        <p className="font-medium text-[hsl(var(--foreground))]">{title}</p>
-        <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">{description}</p>
-      </div>
-      {action}
-    </div>
-  );
-}
-
-type InstallmentWithBenefit = {
-  id: string; benefitId: string; installmentNumber: number; totalInstallments: number;
-  dueDate: string; paidDate: string | null; amount: string; status: string;
-  autoPaid?: boolean | null; paidBy?: string | null;
-  benefit?: { commerce: string | null; type: string };
-};
-
-function InstallmentsTable({ installments }: { installments: InstallmentWithBenefit[] }) {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Concepto</TableHead>
-          <TableHead className="hidden sm:table-cell">Tipo</TableHead>
-          <TableHead>Cuota</TableHead>
-          <TableHead>Vencimiento</TableHead>
-          <TableHead className="hidden md:table-cell">Pago</TableHead>
-          <TableHead>Monto</TableHead>
-          <TableHead>Estado</TableHead>
-          <TableHead className="hidden lg:table-cell">Cobro</TableHead>
-          <TableHead className="text-right">Acciones</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {installments.map((i) => (
-          <TableRow key={i.id}>
-            <TableCell className="text-sm font-medium">{i.benefit?.commerce ?? "—"}</TableCell>
-            <TableCell className="hidden sm:table-cell">
-              {i.benefit ? (
-                <BenefitTypeBadge type={i.benefit.type as "ayuda_economica" | "supermercado" | "otro"} />
-              ) : "—"}
-            </TableCell>
-            <TableCell className="text-sm text-[hsl(var(--muted-foreground))]">
-              {i.installmentNumber}/{i.totalInstallments}
-            </TableCell>
-            <TableCell className="text-sm">{formatDate(i.dueDate)}</TableCell>
-            <TableCell className="hidden md:table-cell text-sm">
-              {i.paidDate ? formatDate(i.paidDate) : "—"}
-            </TableCell>
-            <TableCell className="text-sm font-semibold">{formatCurrency(i.amount)}</TableCell>
-            <TableCell>
-              <InstallmentStatusBadge status={i.status as "pending" | "paid" | "overdue" | "cancelled"} />
-            </TableCell>
-            <TableCell className="hidden lg:table-cell">
-              {i.status === "paid" ? (
-                <CollectionMethodBadge autoPaid={i.autoPaid} paidBy={i.paidBy} />
-              ) : (
-                <span className="text-sm text-[hsl(var(--muted-foreground))]">—</span>
-              )}
-            </TableCell>
-            <TableCell className="text-right">
-              {i.status === "paid" && (
-                <UnpayInstallmentButton
-                  installmentId={i.id}
-                  installmentNumber={i.installmentNumber}
-                  totalInstallments={i.totalInstallments}
-                  amount={i.amount}
-                  dueDate={i.dueDate}
-                />
-              )}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
 }

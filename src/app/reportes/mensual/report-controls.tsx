@@ -23,7 +23,7 @@ export function ReportControls({ month, year }: { month: number; year: number })
 
   return (
     <div className="flex flex-wrap items-center gap-2 print:hidden">
-      <Button variant="ghost" size="sm" onClick={() => router.push("/dashboard")}>
+      <Button variant="ghost" size="sm" onClick={() => router.push("/analisis")}>
         <ChevronLeft className="h-4 w-4" />
         Volver
       </Button>

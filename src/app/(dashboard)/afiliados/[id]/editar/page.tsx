@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { AffiliateForm } from "@/components/affiliates/affiliate-form";
 import { SensitiveText } from "@/components/privacy/sensitive-value";
 import { getAffiliateById, getAreas } from "@/lib/services/affiliates.service";
+import { isUuid } from "@/lib/utils/labels";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -13,12 +14,14 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
+  if (!isUuid(id)) return { title: "Editar Afiliado" };
   const data = await getAffiliateById(id);
   return { title: data ? `Editar: ${data.fullName}` : "Editar Afiliado" };
 }
 
 export default async function EditAffiliatePage({ params }: PageProps) {
   const { id } = await params;
+  if (!isUuid(id)) notFound();
   const [data, areas] = await Promise.all([
     getAffiliateById(id),
     getAreas(),

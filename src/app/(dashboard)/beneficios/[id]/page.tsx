@@ -37,6 +37,7 @@ import { formatCurrency } from "@/lib/utils/credit";
 import { formatDate } from "@/lib/utils/date";
 import { getBenefitById } from "@/lib/services/benefits.service";
 import { calculateBenefitFinancials } from "@/lib/utils/financial";
+import { isUuid } from "@/lib/utils/labels";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
+  if (!isUuid(id)) return { title: "Beneficio" };
   const benefit = await getBenefitById(id);
   if (!benefit) return { title: "Beneficio" };
   const type = { ayuda_economica: "Ayuda Económica", supermercado: "COMERCIO", otro: "Otro" }[benefit.type] ?? benefit.type;
@@ -54,6 +56,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function BenefitDetailPage({ params }: PageProps) {
   const { id } = await params;
+  if (!isUuid(id)) notFound();
   const benefit = await getBenefitById(id);
 
   if (!benefit) notFound();
@@ -164,7 +167,7 @@ export default async function BenefitDetailPage({ params }: PageProps) {
               <>
                 <div>
                   <Link
-                    href={`/afiliados/${benefit.affiliate.id}`}
+                    href={`/beneficios/afiliado/${benefit.affiliate.id}`}
                     className="font-semibold hover:text-[hsl(var(--primary))] transition-colors"
                   >
                     {benefit.affiliate.fullName}
@@ -174,8 +177,13 @@ export default async function BenefitDetailPage({ params }: PageProps) {
                   </p>
                 </div>
                 <Button variant="outline" size="sm" className="w-full" asChild>
+                  <Link href={`/beneficios/afiliado/${benefit.affiliate.id}`}>
+                    Situación de beneficios
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full" asChild>
                   <Link href={`/afiliados/${benefit.affiliate.id}`}>
-                    Ver perfil del afiliado
+                    Ver ficha del afiliado
                   </Link>
                 </Button>
               </>

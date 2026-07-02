@@ -76,6 +76,8 @@ export interface AffiliateCreditSummary {
   availableAmount: string | null;
   /** Suma total de todas las cuotas pendientes/vencidas (informativo). */
   totalCommitted?: string;
+  /** Cantidad de beneficios activos (referencia simple para el fichero). */
+  activeBenefitsCount?: number;
 }
 
 // ─── API Response types ───────────────────────────────────────────────────────

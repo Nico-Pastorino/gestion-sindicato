@@ -5,14 +5,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   AlertTriangle,
-  ArrowRight,
   Award,
   BarChart3,
   Briefcase,
-  CheckCircle2,
+  CalendarClock,
   ChevronRight,
-  Clock,
   DollarSign,
+  FileDown,
   FileText,
   Gauge,
   Gift,
@@ -31,14 +30,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SensitiveValue } from "@/components/privacy/sensitive-value";
 import { formatCurrencyARS } from "@/lib/utils/currency";
+import { formatDate } from "@/lib/utils/date";
+import { getBenefitTypeLabel } from "@/lib/utils/benefit-types";
 import type {
   DashboardSummary,
   MonthlyHistoryRow,
   DashboardGlobals,
   DashboardAnalytics,
+  AnalysisInsights,
 } from "@/lib/services/dashboard.service";
 
-interface DashboardClientProps {
+interface AnalysisClientProps {
   initialMonth: number;
   initialYear: number;
   periodLabel: string;
@@ -46,6 +48,7 @@ interface DashboardClientProps {
   monthlyHistory: MonthlyHistoryRow[];
   globals: DashboardGlobals;
   analytics: DashboardAnalytics;
+  insights: AnalysisInsights;
 }
 
 const MONTHS = [
@@ -53,7 +56,7 @@ const MONTHS = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
-export function DashboardClient({
+export function AnalysisClient({
   initialMonth,
   initialYear,
   periodLabel,
@@ -61,7 +64,8 @@ export function DashboardClient({
   monthlyHistory: initHistory,
   globals: initGlobals,
   analytics: initAnalytics,
-}: DashboardClientProps) {
+  insights,
+}: AnalysisClientProps) {
   const router = useRouter();
   const [month, setMonth] = useState(initialMonth);
   const [year, setYear] = useState(initialYear);
@@ -89,7 +93,7 @@ export function DashboardClient({
         setLabel(json.period.label);
       }
     });
-    router.replace(`/dashboard?month=${m}&year=${y}`, { scroll: false });
+    router.replace(`/analisis?month=${m}&year=${y}`, { scroll: false });
   }
 
   function handleMonth(m: number) { setMonth(m); loadPeriod(m, year); }
@@ -110,27 +114,18 @@ export function DashboardClient({
   const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
   const prev = history.find((r) => r.month === prevKey);
 
-  // Estado general
-  const overdueCount = globals.overdueInstallmentsCount;
-  const status: "ok" | "warn" | "alert" =
-    overdueCount > 0 ? "alert" : globals.collectionComplianceRate < 70 ? "warn" : "ok";
-
-  // Acciones de hoy
-  const actions: Array<{ tone: "alert" | "warn"; title: string; href: string }> = [];
-  if (overdueCount > 0)
-    actions.push({ tone: "alert", title: `${overdueCount} cuota${overdueCount !== 1 ? "s" : ""} vencida${overdueCount !== 1 ? "s" : ""} · revisá la cobranza`, href: "/cobranza?status=overdue" });
-  if (globals.affiliatesWithoutCredit > 0)
-    actions.push({ tone: "warn", title: `${globals.affiliatesWithoutCredit} afiliado${globals.affiliatesWithoutCredit !== 1 ? "s" : ""} sin cupo disponible`, href: "/afiliados" });
-  if (summary.pendingInstallmentsCount > 0)
-    actions.push({ tone: "warn", title: `${summary.pendingInstallmentsCount} cuota${summary.pendingInstallmentsCount !== 1 ? "s" : ""} por cobrar este mes`, href: `/cobranza?status=pending&${p}` });
-
   return (
     <div className="space-y-8">
       {/* ── Encabezado ── */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Inicio</h1>
-          <p className="mt-0.5 text-sm text-[hsl(var(--muted-foreground))]">Centro de control del sindicato</p>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <BarChart3 className="h-6 w-6" />
+            Análisis
+          </h1>
+          <p className="mt-0.5 text-sm text-[hsl(var(--muted-foreground))]">
+            Métricas, evolución y reportes para entender la situación financiera del sindicato.
+          </p>
         </div>
         {isLoading && (
           <span className="flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]">
@@ -139,91 +134,42 @@ export function DashboardClient({
         )}
       </div>
 
-      {/* ── ¿Cómo está el sindicato? + Qué hacer hoy ── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <StatusBanner status={status} globals={globals} />
-        </div>
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold">Qué hacer hoy</h2>
-          <Card className="h-[calc(100%-1.75rem)]">
-            <CardContent className="p-3">
-              {actions.length === 0 ? (
-                <div className="flex h-full items-center gap-3 px-2 py-3">
-                  <CheckCircle2 className="h-6 w-6 shrink-0 text-green-600" />
-                  <div>
-                    <p className="font-medium">Todo al día</p>
-                    <p className="text-sm text-[hsl(var(--muted-foreground))]">No hay tareas urgentes.</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  {actions.map((a) => (
-                    <Link key={a.href + a.title} href={a.href}
-                      className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 transition-colors hover:bg-[hsl(var(--accent))] ${a.tone === "alert" ? "border-red-200 bg-red-50/50" : "border-amber-200 bg-amber-50/50"}`}>
-                      <span className="flex items-center gap-2 text-sm font-medium">
-                        <AlertTriangle className={`h-4 w-4 shrink-0 ${a.tone === "alert" ? "text-red-600" : "text-amber-600"}`} />
-                        {a.title}
-                      </span>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </section>
-      </div>
-
-      {/* ════════════ ESTADO GENERAL ════════════ */}
+      {/* ════════════ ESTADO GENERAL (histórico) ════════════ */}
       <section className="space-y-4">
         <SectionTitle
-          title="Estado general del sindicato"
-          subtitle="Foto completa de la cartera al día de hoy. No depende del mes seleccionado."
+          title="Estado general de la cartera"
+          subtitle="Foto completa al día de hoy. No depende del mes seleccionado."
         />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <ClickCard href="/afiliados?status=active" icon={<Users className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50"
-            label="Afiliados activos" value={String(globals.activeAffiliates)} sub={`${globals.affiliatesWithActiveBenefit} con beneficio activo`} />
           <ClickCard href="/cobranza?status=overdue" icon={<AlertTriangle className="h-5 w-5 text-red-600" />} iconBg="bg-red-50"
             label="En mora (vencido)" value={formatCurrencyARS(globals.totalOverdue)}
             sub={`${globals.overdueInstallmentsCount} cuotas · ${globals.affectedOverdueAffiliates} afiliados`} alert={globals.overdueInstallmentsCount > 0} />
-          <ClickCard href="/dashboard/total-a-cobrar" icon={<WalletCards className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50"
+          <ClickCard href={`/analisis/total-a-cobrar?${p}`} icon={<WalletCards className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50"
             label="Total a cobrar" value={formatCurrencyARS(globals.totalToCollect)} sub={`${formatCurrencyARS(globals.totalCollected)} ya cobrado`} />
-          <GaugeCard label="Cumplimiento global" percent={globals.collectionComplianceRate} sub="cuotas cobradas sobre el total" href="/cobranza" />
+          <GaugeCard label="Cumplimiento de cobro" percent={globals.collectionComplianceRate} sub="Cuotas cobradas sobre el total" href="/cobranza" />
+          <ClickCard href={`/analisis/capital-entregado?${p}`} icon={<DollarSign className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50"
+            label="Total financiado (histórico)" value={formatCurrencyARS(globals.totalCapitalDelivered)} sub={`${globals.activeBenefits} beneficios activos`} />
         </div>
 
         <CollectionHealth globals={globals} collectedPct={collectedPct} />
 
-        {/* Composición de afiliados */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <ClickCard href="/afiliados" compact icon={<Briefcase className="h-5 w-5 text-slate-600" />} iconBg="bg-slate-100"
-            label="Planta permanente" value={String(globals.permanentStaff)} />
-          <ClickCard href="/afiliados" compact icon={<Briefcase className="h-5 w-5 text-slate-600" />} iconBg="bg-slate-100"
-            label="Planta temporaria" value={String(globals.temporaryStaff)} />
-          <ClickCard href="/afiliados" compact icon={<Users className="h-5 w-5 text-slate-600" />} iconBg="bg-slate-100"
-            label="Jubilados" value={String(globals.retirees)} />
-          <ClickCard href="/beneficios?type=supermercado" compact icon={<Store className="h-5 w-5 text-emerald-700" />} iconBg="bg-emerald-50"
-            label="Comercios adheridos" value={String(globals.commercesCount)} sub={globals.topCommerce ? `Líder: ${globals.topCommerce}` : undefined} />
-        </div>
-
-        {/* Capital, interés y ganancia (histórico) */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <ClickCard href="/dashboard/capital-entregado" icon={<DollarSign className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50"
-            label="Capital otorgado histórico" value={formatCurrencyARS(globals.totalCapitalDelivered)} sub={`${globals.activeBenefits} beneficios activos`} />
-          <ClickCard href="/dashboard/ganancia-estimada" icon={<TrendingUp className="h-5 w-5 text-orange-600" />} iconBg="bg-orange-50"
-            label="Interés total generado" value={formatCurrencyARS(globals.totalInterestGenerated)} sub={`${formatCurrencyARS(globals.totalInterestCollected)} cobrado`} />
+          <ClickCard href={`/analisis/ganancia-estimada?${p}`} icon={<TrendingUp className="h-5 w-5 text-orange-600" />} iconBg="bg-orange-50"
+            label="Interés total generado" value={formatCurrencyARS(globals.totalInterestGenerated)} sub={`${formatCurrencyARS(globals.totalInterestCollected)} ya cobrado`} />
           <ClickCard href="/beneficios?type=supermercado" icon={<Landmark className="h-5 w-5 text-emerald-700" />} iconBg="bg-emerald-50"
             label="Ganancia por retención" value={formatCurrencyARS(globals.commerceRetentionTotal)} sub={`${globals.averageCommerceRetentionRate.toFixed(1)}% promedio`} />
           <ClickCard href="/beneficios?status=active" icon={<Gift className="h-5 w-5 text-purple-600" />} iconBg="bg-purple-50"
             label="Beneficios activos" value={String(globals.activeBenefits)} sub={`${globals.finishedBenefits} finalizados`} />
+          <ClickCard href="/beneficios?type=supermercado" icon={<Store className="h-5 w-5 text-emerald-700" />} iconBg="bg-emerald-50"
+            label="Comercios adheridos" value={String(globals.commercesCount)} sub={globals.topCommerce ? `Líder: ${globals.topCommerce}` : undefined} />
         </div>
       </section>
 
       {/* ════════════ ANÁLISIS DEL MES ════════════ */}
       <section className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <SectionTitle title="Análisis del mes" subtitle={`Detalle del período seleccionado: ${label}. Las flechas comparan con el mes anterior.`} />
+          <SectionTitle title="Análisis del mes" subtitle={`Período seleccionado: ${label}. Las flechas comparan con el mes anterior.`} />
           <div className="flex flex-wrap items-center gap-2 print:hidden">
             <select value={month} onChange={(e) => handleMonth(Number(e.target.value))} aria-label="Mes"
               className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2.5 py-1.5 text-sm font-medium">
@@ -255,28 +201,31 @@ export function DashboardClient({
 
         {/* KPIs del mes (con variación) */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <ClickCard href={`/afiliados?${p}`} icon={<UserPlus className="h-5 w-5 text-cyan-700" />} iconBg="bg-cyan-50"
-            label="Nuevos afiliados" value={String(summary.newAffiliatesCount)} sub={label} />
-          <ClickCard href={`/dashboard/capital-entregado?${p}`} icon={<DollarSign className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50"
-            label="Capital del mes" value={formatCurrencyARS(summary.capitalDelivered)}
-            sub={`${summary.benefitsCount} beneficio${summary.benefitsCount !== 1 ? "s" : ""}`}
+          <ClickCard href={`/analisis/capital-entregado?${p}`} icon={<DollarSign className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50"
+            label="Beneficios otorgados (monto)" value={formatCurrencyARS(summary.capitalDelivered)}
+            sub={`${summary.benefitsCount} beneficio${summary.benefitsCount !== 1 ? "s" : ""} en ${label}`}
             delta={pctDelta(summary.capitalDelivered, prev?.capitalDelivered)} />
-          <ClickCard href={`/dashboard/ganancia-estimada?${p}`} icon={<TrendingUp className="h-5 w-5 text-orange-600" />} iconBg="bg-orange-50"
+          <ClickCard href={`/analisis/cobrado?${p}`} icon={<WalletCards className="h-5 w-5 text-green-600" />} iconBg="bg-green-50"
+            label="Cobrado (beneficios del mes)" value={formatCurrencyARS(summary.paidAmount)}
+            sub={`${summary.paidInstallmentsCount} cuota${summary.paidInstallmentsCount !== 1 ? "s" : ""}`}
+            delta={pctDelta(summary.paidAmount, prev?.paidAmount)} />
+          <ClickCard href={`/analisis/falta-cobrar?${p}`} icon={<CalendarClock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50"
+            label="Pendiente de cobro" value={formatCurrencyARS(summary.pendingToCollect)} sub={`${summary.pendingInstallmentsCount} cuotas pendientes`}
+            alert={summary.overdueInstallmentsCount > 0} />
+          <ClickCard href={`/analisis/ganancia-estimada?${p}`} icon={<TrendingUp className="h-5 w-5 text-orange-600" />} iconBg="bg-orange-50"
             label="Interés del mes" value={formatCurrencyARS(summary.estimatedProfit)} sub={`${formatCurrencyARS(summary.collectedProfit)} cobrado`}
             delta={pctDelta(summary.estimatedProfit, prev?.estimatedProfit)} />
-          <ClickCard href={`/cobranza?status=pending&${p}`} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50"
-            label="Pendiente del mes" value={formatCurrencyARS(summary.pendingToCollect)} sub={`${summary.pendingInstallmentsCount} cuotas pendientes`}
-            alert={summary.overdueInstallmentsCount > 0} />
-          <ClickCard href={`/beneficios?type=supermercado&${p}`} icon={<Store className="h-5 w-5 text-purple-700" />} iconBg="bg-purple-50"
-            label="Comercios usados" value={String(summary.commercesUsedCount)} sub="con movimiento en el mes" />
-          <ClickCard href={`/beneficios?type=supermercado&${p}`} icon={<WalletCards className="h-5 w-5 text-emerald-700" />} iconBg="bg-emerald-50"
-            label="Ganancia del sindicato" value={formatCurrencyARS(summary.unionProfit)} sub={`${formatCurrencyARS(summary.commerceRetentionProfit)} por retención`} />
+          <ClickCard href={`/beneficios?type=supermercado`} icon={<Landmark className="h-5 w-5 text-emerald-700" />} iconBg="bg-emerald-50"
+            label="Ganancia del sindicato" value={formatCurrencyARS(summary.unionProfit)} sub={`${formatCurrencyARS(summary.commerceRetentionProfit)} por retención`}
+            delta={pctDelta(summary.unionProfit, prev?.unionProfit)} />
+          <ClickCard href="/afiliados" icon={<UserPlus className="h-5 w-5 text-cyan-700" />} iconBg="bg-cyan-50"
+            label="Nuevos afiliados" value={String(summary.newAffiliatesCount)} sub={label} />
         </div>
 
-        {/* Retenciones / acumulados del período */}
+        {/* Acumulados */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <MiniStat label="Retenido este mes" value={formatCurrencyARS(summary.amountRetainedThisMonth)} />
-          <MiniStat label="Retenido en el año" value={formatCurrencyARS(summary.amountRetainedThisYear)} />
+          <MiniStat label="Ganancia este mes" value={formatCurrencyARS(summary.amountRetainedThisMonth)} />
+          <MiniStat label="Ganancia en el año" value={formatCurrencyARS(summary.amountRetainedThisYear)} />
           <MiniStat label="Beneficios este mes" value={String(summary.benefitsCount)} />
           <MiniStat label="Beneficios en el año" value={String(summary.benefitsThisYear)} />
         </div>
@@ -305,6 +254,19 @@ export function DashboardClient({
         </div>
       </section>
 
+      {/* ════════════ SEGUIMIENTO ════════════ */}
+      <section className="space-y-4">
+        <SectionTitle
+          title="Seguimiento de afiliados y beneficios"
+          subtitle="Situaciones a mirar de cerca: límites de descuento y beneficios por terminar."
+        />
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <NearLimitCard rows={insights.nearLimitAffiliates} />
+          <EndingSoonCard rows={insights.endingSoonBenefits} />
+          <TopUsageCard rows={insights.topUsageAffiliates} />
+        </div>
+      </section>
+
       {/* ── Historial mensual ── */}
       <section>
         <SectionTitle title="Historial mensual" subtitle="Últimos 6 meses. Clic en una fila para verla en el análisis." />
@@ -315,7 +277,7 @@ export function DashboardClient({
                 <tr className="border-b text-xs uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
                   <th className="px-4 py-2.5 text-left font-semibold">Mes</th>
                   <th className="px-3 py-2.5 text-right font-semibold">Beneficios</th>
-                  <th className="px-3 py-2.5 text-right font-semibold">Capital entregado</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Monto otorgado</th>
                   <th className="hidden px-3 py-2.5 text-right font-semibold md:table-cell">Interés total</th>
                   <th className="hidden px-3 py-2.5 text-right font-semibold md:table-cell">Interés cobrado</th>
                   <th className="hidden px-3 py-2.5 text-right font-semibold lg:table-cell">Interés por cobrar</th>
@@ -332,7 +294,7 @@ export function DashboardClient({
                       onClick={() => { handleMonth(Number(hm)); handleYear(Number(hy)); }}>
                       <td className="px-4 py-2.5 capitalize">
                         {row.monthLabel}
-                        {isSelected && <span className="ml-2 text-xs font-normal text-blue-600">actual</span>}
+                        {isSelected && <span className="ml-2 text-xs font-normal text-blue-600">seleccionado</span>}
                       </td>
                       <td className="px-3 py-2.5 text-right text-[hsl(var(--muted-foreground))]">{row.benefitsCount}</td>
                       <td className="px-3 py-2.5 text-right font-medium"><SensitiveValue value={formatCurrencyARS(row.capitalDelivered)} /></td>
@@ -349,17 +311,123 @@ export function DashboardClient({
         </Card>
       </section>
 
-      {/* ── Accesos a módulos ── */}
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold">¿A dónde vas?</h2>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <ModuleCard href="/afiliados" icon={<Users className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" label="Afiliados" detail={`${globals.activeAffiliates} activos`} />
-          <ModuleCard href="/beneficios" icon={<Gift className="h-5 w-5 text-purple-600" />} iconBg="bg-purple-50" label="Beneficios" detail={`${globals.activeBenefits} activos`} />
-          <ModuleCard href="/cobranza" icon={<WalletCards className="h-5 w-5 text-emerald-700" />} iconBg="bg-emerald-50" label="Cobranzas" detail={overdueCount > 0 ? `${overdueCount} vencidas` : "al día"} alert={overdueCount > 0} />
-          <ModuleCard href={`/reportes/mensual?${p}`} icon={<FileText className="h-5 w-5 text-slate-600" />} iconBg="bg-slate-100" label="Reportes" detail="ver análisis" newTab />
-        </div>
-      </section>
+      {/* ── Exportes ── */}
+      <Card>
+        <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100">
+              <FileDown className="h-5 w-5 text-slate-600" />
+            </div>
+            <div>
+              <p className="font-semibold">Exportes mensuales</p>
+              <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                El archivo para la municipalidad se genera y controla desde Exportar.
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" asChild>
+            <Link href="/exportar">Ir a Exportar<ChevronRight className="h-4 w-4" /></Link>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
+  );
+}
+
+// ─── Seguimiento ──────────────────────────────────────────────────────────────
+
+function NearLimitCard({ rows }: { rows: AnalysisInsights["nearLimitAffiliates"] }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Gauge className="h-4 w-4 text-red-600" />
+          Afiliados cerca del límite
+        </CardTitle>
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">Usan el 80% o más de su tope mensual del 30%.</p>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {rows.length === 0 ? (
+          <p className="py-4 text-sm text-[hsl(var(--muted-foreground))]">Ningún afiliado está cerca de su límite.</p>
+        ) : rows.map((r) => (
+          <Link key={r.affiliateId} href={`/beneficios/afiliado/${r.affiliateId}`}
+            className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 transition-colors hover:bg-[hsl(var(--accent))]/40">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{r.fullName}</p>
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                Cupo libre: <SensitiveValue value={formatCurrencyARS(r.availableAmount)} />
+              </p>
+            </div>
+            <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${r.usagePercent >= 100 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+              {r.usagePercent}%
+            </span>
+          </Link>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function EndingSoonCard({ rows }: { rows: AnalysisInsights["endingSoonBenefits"] }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <CalendarClock className="h-4 w-4 text-blue-600" />
+          Beneficios por terminar
+        </CardTitle>
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">Les queda una sola cuota por cobrar.</p>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {rows.length === 0 ? (
+          <p className="py-4 text-sm text-[hsl(var(--muted-foreground))]">No hay beneficios por terminar.</p>
+        ) : rows.map((r) => (
+          <Link key={r.id} href={`/beneficios/${r.id}`}
+            className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 transition-colors hover:bg-[hsl(var(--accent))]/40">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{r.fullName}</p>
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                {getBenefitTypeLabel(r.type)}{r.commerce ? ` · ${r.commerce}` : ""}
+              </p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">Última cuota</p>
+              <p className="text-sm font-semibold">{r.lastDueDate ? formatDate(r.lastDueDate) : "—"}</p>
+            </div>
+          </Link>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TopUsageCard({ rows }: { rows: AnalysisInsights["topUsageAffiliates"] }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Award className="h-4 w-4 text-amber-600" />
+          Mayor uso de beneficios
+        </CardTitle>
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">Afiliados con más dinero comprometido en cuotas.</p>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {rows.length === 0 ? (
+          <p className="py-4 text-sm text-[hsl(var(--muted-foreground))]">Sin cuotas comprometidas.</p>
+        ) : rows.map((r, index) => (
+          <Link key={r.affiliateId} href={`/beneficios/afiliado/${r.affiliateId}`}
+            className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 transition-colors hover:bg-[hsl(var(--accent))]/40">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{index + 1}. {r.fullName}</p>
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                {r.activeBenefits} beneficio{r.activeBenefits !== 1 ? "s" : ""} activo{r.activeBenefits !== 1 ? "s" : ""}
+              </p>
+            </div>
+            <p className="shrink-0 text-sm font-bold"><SensitiveValue value={formatCurrencyARS(r.totalCommitted)} /></p>
+          </Link>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -436,44 +504,6 @@ function HealthLegend({ label, value, percent, tone }: { label: string; value: s
   );
 }
 
-function StatusBanner({ status, globals }: { status: "ok" | "warn" | "alert"; globals: DashboardGlobals }) {
-  const cfg = {
-    ok: { box: "border-green-200 bg-green-50", text: "text-green-800", title: "El sindicato está al día", icon: <CheckCircle2 className="h-7 w-7 text-green-600" /> },
-    warn: { box: "border-amber-200 bg-amber-50", text: "text-amber-900", title: "Cobranza con margen de mejora", icon: <Clock className="h-7 w-7 text-amber-600" /> },
-    alert: { box: "border-red-200 bg-red-50", text: "text-red-900", title: `Hay ${globals.overdueInstallmentsCount} cuota${globals.overdueInstallmentsCount !== 1 ? "s" : ""} vencida${globals.overdueInstallmentsCount !== 1 ? "s" : ""} en mora`, icon: <AlertTriangle className="h-7 w-7 text-red-600" /> },
-  }[status];
-
-  return (
-    <Card className={`h-full ${cfg.box}`}>
-      <CardContent className="flex h-full flex-col justify-between gap-4 p-5">
-        <div className="flex items-center gap-3">
-          {cfg.icon}
-          <div>
-            <p className={`text-lg font-bold ${cfg.text}`}>{cfg.title}</p>
-            <p className="text-sm text-[hsl(var(--muted-foreground))]">Estado general de la cartera al día de hoy.</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-3 gap-4 border-t border-black/5 pt-4">
-          <BannerStat label="En mora" value={formatCurrencyARS(globals.totalOverdue)} tone={globals.totalOverdue > 0 ? "red" : undefined} />
-          <BannerStat label="A cobrar" value={formatCurrencyARS(globals.totalToCollect)} />
-          <BannerStat label="Cumplimiento" value={`${globals.collectionComplianceRate}%`} />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function BannerStat({ label, value, tone }: { label: string; value: string; tone?: "red" }) {
-  return (
-    <div>
-      <p className="text-xs text-[hsl(var(--muted-foreground))]">{label}</p>
-      <p className={`mt-0.5 text-lg font-bold ${tone === "red" ? "text-red-700" : ""}`}>
-        {value.trim().startsWith("$") ? <SensitiveValue value={value} /> : value}
-      </p>
-    </div>
-  );
-}
-
 function DeltaBadge({ delta }: { delta: number | null }) {
   if (delta == null) return null;
   if (delta === 0)
@@ -487,7 +517,7 @@ function DeltaBadge({ delta }: { delta: number | null }) {
   );
 }
 
-function ClickCard({ href, icon, iconBg, label, value, sub, alert = false, compact = false, money = false, delta = null }: {
+function ClickCard({ href, icon, iconBg, label, value, sub, alert = false, delta = null }: {
   href: string;
   icon: ReactNode;
   iconBg: string;
@@ -495,15 +525,13 @@ function ClickCard({ href, icon, iconBg, label, value, sub, alert = false, compa
   value: string;
   sub?: string;
   alert?: boolean;
-  compact?: boolean;
-  money?: boolean;
   delta?: number | null;
 }) {
   return (
     <Link
       href={href}
       title={`${label}${sub ? ` — ${sub}` : ""}`}
-      className={`group block cursor-pointer rounded-xl border bg-[hsl(var(--card))] ${compact ? "p-3.5" : "p-4"} transition-all hover:border-[hsl(var(--primary))]/30 hover:shadow-md ${alert ? "border-red-200 bg-red-50/40" : ""}`}
+      className={`group block cursor-pointer rounded-xl border bg-[hsl(var(--card))] p-4 transition-all hover:border-[hsl(var(--primary))]/30 hover:shadow-md ${alert ? "border-red-200 bg-red-50/40" : ""}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconBg}`}>{icon}</div>
@@ -511,8 +539,8 @@ function ClickCard({ href, icon, iconBg, label, value, sub, alert = false, compa
       </div>
       <div className="mt-3 space-y-0.5">
         <p className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">{label}</p>
-        <p className={`${compact ? "text-lg" : "text-xl"} font-bold ${alert ? "text-red-700" : ""}`}>
-          {money || value.trim().startsWith("$") ? <SensitiveValue value={value} /> : value}
+        <p className={`text-xl font-bold ${alert ? "text-red-700" : ""}`}>
+          {value.trim().startsWith("$") ? <SensitiveValue value={value} /> : value}
         </p>
         {sub && <p className="text-xs text-[hsl(var(--muted-foreground))]">{sub}</p>}
       </div>
@@ -538,27 +566,11 @@ function GaugeCard({ label, percent, sub, href }: { label: string; percent: numb
   );
 }
 
-function ModuleCard({ href, icon, iconBg, label, detail, alert = false, newTab = false }: {
-  href: string; icon: ReactNode; iconBg: string; label: string; detail: string; alert?: boolean; newTab?: boolean;
-}) {
-  return (
-    <Link href={href} {...(newTab ? { target: "_blank" } : {})}
-      className={`group flex items-center gap-3 rounded-xl border bg-[hsl(var(--card))] p-4 transition-all hover:border-[hsl(var(--primary))]/30 hover:shadow-md ${alert ? "border-red-200 bg-red-50/40" : ""}`}>
-      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${iconBg}`}>{icon}</div>
-      <div className="min-w-0 flex-1">
-        <p className="font-semibold">{label}</p>
-        <p className={`truncate text-xs ${alert ? "font-medium text-red-700" : "text-[hsl(var(--muted-foreground))]"}`}>{detail}</p>
-      </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))] opacity-0 transition-opacity group-hover:opacity-100" />
-    </Link>
-  );
-}
-
-function MiniStat({ label, value, money = false }: { label: string; value: string; money?: boolean }) {
+function MiniStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border bg-[hsl(var(--muted))]/30 px-3 py-3">
       <p className="text-xs text-[hsl(var(--muted-foreground))]">{label}</p>
-      <p className="mt-1 text-base font-bold">{money || value.trim().startsWith("$") ? <SensitiveValue value={value} /> : value}</p>
+      <p className="mt-1 text-base font-bold">{value.trim().startsWith("$") ? <SensitiveValue value={value} /> : value}</p>
     </div>
   );
 }

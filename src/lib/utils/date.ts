@@ -6,17 +6,17 @@ import { es } from "date-fns/locale";
 // Los afiliados cobran el ÚLTIMO DÍA del mes.
 // La municipalidad retiene el descuento en ese mismo pago.
 //
-// Regla:
-//   - Si el beneficio se otorga entre día 1 y día 20 (inclusive):
+// Regla (igual que el período municipal, que corre del 20 al 19):
+//   - Si el beneficio se otorga entre día 1 y día 19 (inclusive):
 //     → la primera cuota se cobra el último día de ESE MISMO mes.
-//   - Si el beneficio se otorga desde el día 21 en adelante:
+//   - Si el beneficio se otorga desde el día 20 en adelante:
 //     → la primera cuota se cobra el último día del MES SIGUIENTE.
 //   - Las cuotas siguientes son siempre el último día de cada mes subsiguiente.
 //
 // Ejemplos:
 //   10/05/2026 → 31/05, 30/06, 31/07
-//   20/05/2026 → 31/05, 30/06, 31/07
-//   21/05/2026 → 30/06, 31/07, 31/08
+//   19/05/2026 → 31/05, 30/06, 31/07
+//   20/05/2026 → 30/06, 31/07, 31/08
 //   25/05/2026 → 30/06, 31/07, 31/08
 
 /**

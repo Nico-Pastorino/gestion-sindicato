@@ -13,17 +13,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AffiliateStatusBadge } from "@/components/ui/badge";
-import { CreditBar } from "@/components/shared/credit-bar";
-import { SensitiveValue } from "@/components/privacy/sensitive-value";
-import { formatCurrency } from "@/lib/utils/credit";
+import { formatEmploymentType } from "@/lib/utils/labels";
 import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
-  BadgeCheck,
   Eye,
   FileSpreadsheet,
-  Gift,
   Pencil,
   Printer,
   Search,
@@ -34,7 +30,7 @@ interface AffiliatesTableProps {
   affiliates: AffiliateCreditSummary[];
 }
 
-type SortKey = "fullName" | "dni" | "legajo" | "area" | "availableAmount" | "status";
+type SortKey = "fullName" | "dni" | "legajo" | "area" | "status";
 type SortDir = "asc" | "desc";
 
 export function AffiliatesTable({ affiliates }: AffiliatesTableProps) {
@@ -54,9 +50,6 @@ export function AffiliatesTable({ affiliates }: AffiliatesTableProps) {
 
     const sorted = [...filtered].sort((a, b) => {
       const dir = sortDir === "asc" ? 1 : -1;
-      if (sortKey === "availableAmount") {
-        return (toNum(a.availableAmount) - toNum(b.availableAmount)) * dir;
-      }
       return String(a[sortKey] ?? "").localeCompare(String(b[sortKey] ?? ""), "es", { numeric: true }) * dir;
     });
     return sorted;
@@ -80,8 +73,7 @@ export function AffiliatesTable({ affiliates }: AffiliatesTableProps) {
         Legajo: a.legajo ?? "",
         Área: a.area ?? "",
         Situación: formatEmploymentType(a.employmentType),
-        "Salario bruto": a.grossSalary != null ? Number(a.grossSalary) : "",
-        Disponible: a.availableAmount != null ? Number(a.availableAmount) : "",
+        "Beneficios activos": a.activeBenefitsCount ?? 0,
         Estado: a.status === "active" ? "Activo" : "Inactivo",
       }));
       const ws = XLSX.utils.json_to_sheet(data);
@@ -148,8 +140,8 @@ export function AffiliatesTable({ affiliates }: AffiliatesTableProps) {
                     <p className="font-medium">{formatEmploymentType(affiliate.employmentType)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-[hsl(var(--muted-foreground))]">Disponible</p>
-                    <p className="font-semibold"><SensitiveValue value={formatCurrency(affiliate.availableAmount ?? "0")} /></p>
+                    <p className="text-xs text-[hsl(var(--muted-foreground))]">Beneficios</p>
+                    <BenefitsIndicator count={affiliate.activeBenefitsCount ?? 0} />
                   </div>
                 </div>
               </Link>
@@ -166,8 +158,7 @@ export function AffiliatesTable({ affiliates }: AffiliatesTableProps) {
                   <SortableHead label="Legajo" col="legajo" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="hidden lg:table-cell" />
                   <SortableHead label="Área" col="area" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="hidden lg:table-cell" />
                   <TableHead className="hidden xl:table-cell">Situación</TableHead>
-                  <TableHead className="hidden xl:table-cell">Salario Bruto</TableHead>
-                  <SortableHead label="Disponible" col="availableAmount" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                  <TableHead>Beneficios</TableHead>
                   <SortableHead label="Estado" col="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="hidden sm:table-cell" />
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
@@ -190,33 +181,10 @@ export function AffiliatesTable({ affiliates }: AffiliatesTableProps) {
                     <TableCell className="hidden text-sm lg:table-cell">{affiliate.legajo ?? "-"}</TableCell>
                     <TableCell className="hidden text-sm text-[hsl(var(--muted-foreground))] lg:table-cell">{affiliate.area ?? "-"}</TableCell>
                     <TableCell className="hidden text-sm xl:table-cell">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--muted))] px-2 py-1 text-xs font-medium">
-                        <BadgeCheck className="h-3 w-3" />
-                        {formatEmploymentType(affiliate.employmentType)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="hidden text-sm xl:table-cell">
-                      {affiliate.grossSalary != null
-                        ? <SensitiveValue value={formatCurrency(affiliate.grossSalary)} />
-                        : <span className="text-[hsl(var(--muted-foreground))]">Pendiente</span>}
+                      {formatEmploymentType(affiliate.employmentType)}
                     </TableCell>
                     <TableCell>
-                      <div className="min-w-[140px]">
-                        {affiliate.creditLimit30 != null ? (
-                          <>
-                            <CreditBar
-                              grossSalary={affiliate.grossSalary ?? "0"}
-                              creditLimit30={affiliate.creditLimit30}
-                              activeDiscounts={affiliate.activeDiscounts}
-                              availableAmount={affiliate.availableAmount ?? "0"}
-                              showLabels={false}
-                            />
-                            <p className="mt-1 text-xs font-medium"><SensitiveValue value={formatCurrency(affiliate.availableAmount ?? "0")} /></p>
-                          </>
-                        ) : (
-                          <span className="text-xs text-[hsl(var(--muted-foreground))]">Sin salario</span>
-                        )}
-                      </div>
+                      <BenefitsIndicator count={affiliate.activeBenefitsCount ?? 0} />
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
                       <AffiliateStatusBadge status={affiliate.status} />
@@ -224,15 +192,9 @@ export function AffiliatesTable({ affiliates }: AffiliatesTableProps) {
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button variant="ghost" size="icon" asChild>
-                          <Link href={`/beneficios/nuevo?affiliateId=${affiliate.affiliateId}`}>
-                            <Gift className="h-4 w-4" />
-                            <span className="sr-only">Nuevo beneficio</span>
-                          </Link>
-                        </Button>
-                        <Button variant="ghost" size="icon" asChild>
                           <Link href={`/afiliados/${affiliate.affiliateId}`}>
                             <Eye className="h-4 w-4" />
-                            <span className="sr-only">Ver</span>
+                            <span className="sr-only">Ver ficha</span>
                           </Link>
                         </Button>
                         <Button variant="ghost" size="icon" asChild>
@@ -251,6 +213,17 @@ export function AffiliatesTable({ affiliates }: AffiliatesTableProps) {
         </>
       )}
     </div>
+  );
+}
+
+function BenefitsIndicator({ count }: { count: number }) {
+  if (count <= 0) {
+    return <span className="text-xs text-[hsl(var(--muted-foreground))]">Sin beneficios</span>;
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
+      {count} activo{count !== 1 ? "s" : ""}
+    </span>
   );
 }
 
@@ -281,19 +254,4 @@ function SortableHead({
       </button>
     </TableHead>
   );
-}
-
-function toNum(v: string | null | undefined) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function formatEmploymentType(value?: string | null) {
-  const labels: Record<string, string> = {
-    planta_permanente: "Planta Permanente",
-    planta_temporaria: "Planta Temporaria",
-    jubilado: "Jubilado",
-  };
-
-  return value ? labels[value] ?? value : "Sin dato";
 }

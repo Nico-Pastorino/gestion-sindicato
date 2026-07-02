@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { PrivacyProvider } from "@/contexts/privacy-context";
-import { cn } from "@/lib/utils/cn";
+
 
 export default function DashboardLayout({
   children,

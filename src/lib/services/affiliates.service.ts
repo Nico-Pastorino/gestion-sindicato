@@ -15,12 +15,6 @@ export interface AffiliateModuleSummary {
   inactive: number;
   withActiveBenefit: number;
   withoutSalary: number;
-  withoutEmploymentType: number;
-  withoutSex: number;
-  permanentStaff: number;
-  temporaryStaff: number;
-  retirees: number;
-  totalAvailableCredit: number;
 }
 
 // ─── Obtener disponible de un afiliado (desde la vista SQL) ──────────────────
@@ -66,7 +60,8 @@ export async function createAffiliate(
     .values({
       fullName: input.fullName,
       dni: input.dni,
-      legajo: input.legajo ?? null,
+      // "" se guarda como null para no chocar con el índice único de legajo
+      legajo: input.legajo?.trim() || null,
       area: input.area ?? null,
       sex: input.sex ?? null,
       employmentType: input.employmentType ?? null,
@@ -131,7 +126,7 @@ export async function updateAffiliate(
     .set({
       ...(data.fullName !== undefined && { fullName: data.fullName }),
       ...(data.dni !== undefined && { dni: data.dni }),
-      ...(data.legajo !== undefined && { legajo: data.legajo }),
+      ...(data.legajo !== undefined && { legajo: data.legajo?.trim() || null }),
       ...(data.area !== undefined && { area: data.area }),
       ...(data.sex !== undefined && { sex: data.sex }),
       ...(data.employmentType !== undefined && { employmentType: data.employmentType }),
@@ -217,9 +212,16 @@ export async function searchAffiliates(input: AffiliateSearchInput) {
         acs.credit_limit_30   AS "creditLimit30",
         acs.active_discounts  AS "activeDiscounts",
         acs.available_amount  AS "availableAmount",
-        acs.total_committed   AS "totalCommitted"
+        acs.total_committed   AS "totalCommitted",
+        COALESCE(ab.active_benefits, 0)::int AS "activeBenefitsCount"
       FROM affiliate_credit_summary acs
       JOIN affiliates a ON a.id = acs.affiliate_id
+      LEFT JOIN (
+        SELECT affiliate_id, COUNT(*)::int AS active_benefits
+        FROM benefits
+        WHERE status = 'active'
+        GROUP BY affiliate_id
+      ) ab ON ab.affiliate_id = acs.affiliate_id
       WHERE ${baseFilter}
       ORDER BY a.full_name ASC
       LIMIT ${limit} OFFSET ${offset}
@@ -294,19 +296,13 @@ export async function getAreas(): Promise<string[]> {
 }
 
 export async function getAffiliateModuleSummary(): Promise<AffiliateModuleSummary> {
-  const [statusRows, dataQuality, activeBenefitRows, creditRows, employmentRows] = await Promise.all([
+  const [statusRows, activeBenefitRows] = await Promise.all([
     db.execute(sql`
       SELECT
         COUNT(*)::int AS total,
         COUNT(*) FILTER (WHERE status = 'active')::int AS active,
-        COUNT(*) FILTER (WHERE status = 'inactive')::int AS inactive
-      FROM affiliates
-    `),
-    db.execute(sql`
-      SELECT
-        COUNT(*) FILTER (WHERE gross_salary IS NULL OR gross_salary <= 0)::int AS without_salary,
-        COUNT(*) FILTER (WHERE employment_type IS NULL)::int AS without_employment_type,
-        COUNT(*) FILTER (WHERE sex IS NULL)::int AS without_sex
+        COUNT(*) FILTER (WHERE status = 'inactive')::int AS inactive,
+        COUNT(*) FILTER (WHERE status = 'active' AND (gross_salary IS NULL OR gross_salary <= 0))::int AS without_salary
       FROM affiliates
     `),
     db.execute(sql`
@@ -314,30 +310,13 @@ export async function getAffiliateModuleSummary(): Promise<AffiliateModuleSummar
       FROM benefits
       WHERE status = 'active'
     `),
-    db.execute(sql`
-      SELECT COALESCE(SUM(available_amount::numeric), 0) AS total_available
-      FROM affiliate_credit_summary
-      WHERE available_amount IS NOT NULL AND status = 'active'
-    `),
-    db.execute(sql`
-      SELECT
-        COUNT(*) FILTER (WHERE employment_type = 'planta_permanente')::int AS permanent_staff,
-        COUNT(*) FILTER (WHERE employment_type = 'planta_temporaria')::int AS temporary_staff,
-        COUNT(*) FILTER (WHERE employment_type = 'jubilado')::int AS retirees
-      FROM affiliates
-    `),
   ]);
 
-  const status = statusRows.rows[0] as { total: number; active: number; inactive: number };
-  const quality = dataQuality.rows[0] as {
+  const status = statusRows.rows[0] as {
+    total: number;
+    active: number;
+    inactive: number;
     without_salary: number;
-    without_employment_type: number;
-    without_sex: number;
-  };
-  const employment = employmentRows.rows[0] as {
-    permanent_staff: number;
-    temporary_staff: number;
-    retirees: number;
   };
 
   return {
@@ -345,16 +324,6 @@ export async function getAffiliateModuleSummary(): Promise<AffiliateModuleSummar
     active: status?.active ?? 0,
     inactive: status?.inactive ?? 0,
     withActiveBenefit: (activeBenefitRows.rows[0] as { count: number })?.count ?? 0,
-    withoutSalary: quality?.without_salary ?? 0,
-    withoutEmploymentType: quality?.without_employment_type ?? 0,
-    withoutSex: quality?.without_sex ?? 0,
-    permanentStaff: employment?.permanent_staff ?? 0,
-    temporaryStaff: employment?.temporary_staff ?? 0,
-    retirees: employment?.retirees ?? 0,
-    totalAvailableCredit: roundNumber((creditRows.rows[0] as { total_available: string })?.total_available ?? "0"),
+    withoutSalary: status?.without_salary ?? 0,
   };
-}
-
-function roundNumber(value: string | number) {
-  return Math.round(Number(value) * 100) / 100;
 }

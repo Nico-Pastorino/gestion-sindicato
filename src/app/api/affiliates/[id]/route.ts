@@ -54,6 +54,15 @@ export async function PATCH(
         { status: 404 }
       );
     }
+    if (
+      error instanceof Error &&
+      (error.message.includes("unique") || error.message.includes("duplicate"))
+    ) {
+      return NextResponse.json(
+        { error: { code: "DUPLICATE_ERROR", message: "Ya existe otro afiliado con ese DNI o legajo" } },
+        { status: 409 }
+      );
+    }
     console.error("[PATCH /api/affiliates/[id]]", error);
     return NextResponse.json(
       { error: { code: "INTERNAL_ERROR", message: "Error interno del servidor" } },

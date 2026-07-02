@@ -44,7 +44,7 @@ export function MetricDetailClient({ metric, title, subtitle, initialMonth, init
       const json = await res.json();
       if (json.ok) { setData(json.data); setLabel(json.period.label); }
     });
-    router.replace(`/dashboard/${metric}?month=${m}&year=${y}`, { scroll: false });
+    router.replace(`/analisis/${metric}?month=${m}&year=${y}`, { scroll: false });
   }
 
   function handleMonth(m: number) { setMonth(m); loadPeriod(m, year); }
@@ -63,7 +63,7 @@ export function MetricDetailClient({ metric, title, subtitle, initialMonth, init
       {/* ── Header ── */}
       <div>
         <Link
-          href={`/dashboard?month=${month}&year=${year}`}
+          href={`/analisis?month=${month}&year=${year}`}
           className="inline-flex items-center gap-1.5 text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] mb-3 transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />

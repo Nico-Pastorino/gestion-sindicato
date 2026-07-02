@@ -36,7 +36,7 @@ export default async function NewBenefitPage({ searchParams }: PageProps) {
     <div className="space-y-6 max-w-2xl">
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
-          <Link href={affiliateId ? `/afiliados/${affiliateId}` : "/beneficios"}>
+          <Link href={affiliateId ? `/beneficios/afiliado/${affiliateId}` : "/beneficios"}>
             <ChevronLeft className="h-4 w-4" />
             {affiliateId ? "Volver al afiliado" : "Volver a beneficios"}
           </Link>

@@ -189,7 +189,7 @@ export function BenefitsTable({ benefits, showAffiliate = true }: BenefitsTableP
                   <TableRow key={b.id}>
                     {showAffiliate && (
                       <TableCell>
-                        <Link href={`/afiliados/${b.affiliate.id}`} className="font-medium transition-colors hover:text-[hsl(var(--primary))]">
+                        <Link href={`/beneficios/afiliado/${b.affiliate.id}`} className="font-medium transition-colors hover:text-[hsl(var(--primary))]">
                           {b.affiliate.fullName}
                         </Link>
                         <p className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">

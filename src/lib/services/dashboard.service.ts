@@ -95,6 +95,62 @@ export interface DashboardAnalytics {
   topCommerces: Array<{ commerce: string; count: number; amount: number; profit: number }>;
 }
 
+export interface HomeSnapshot {
+  totalAffiliates: number;
+  activeAffiliates: number;
+  activeBenefits: number;
+  affiliatesWithActiveBenefit: number;
+  /** Cuotas que vencen este mes y todavía no se cobraron */
+  dueThisMonthAmount: number;
+  dueThisMonthCount: number;
+  /** Cuotas cobradas durante este mes (por fecha de pago) */
+  collectedThisMonthAmount: number;
+  collectedThisMonthCount: number;
+  /** Ganancia del sindicato por beneficios otorgados este mes */
+  unionProfitThisMonth: number;
+  /** Mora acumulada (todas las cuotas vencidas sin cobrar) */
+  overdueAmount: number;
+  overdueCount: number;
+  overdueAffiliates: number;
+  /** Afiliados activos sin sueldo cargado (no pueden recibir beneficios) */
+  activeWithoutSalary: number;
+}
+
+export interface NearLimitAffiliate {
+  affiliateId: string;
+  fullName: string;
+  dni: string;
+  creditLimit30: number;
+  activeDiscounts: number;
+  availableAmount: number;
+  usagePercent: number;
+}
+
+export interface EndingSoonBenefit {
+  id: string;
+  affiliateId: string;
+  fullName: string;
+  commerce: string | null;
+  type: string;
+  installmentAmount: string;
+  pendingCount: number;
+  lastDueDate: string | null;
+}
+
+export interface TopUsageAffiliate {
+  affiliateId: string;
+  fullName: string;
+  dni: string;
+  activeBenefits: number;
+  totalCommitted: number;
+}
+
+export interface AnalysisInsights {
+  nearLimitAffiliates: NearLimitAffiliate[];
+  endingSoonBenefits: EndingSoonBenefit[];
+  topUsageAffiliates: TopUsageAffiliate[];
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function monthBounds(month: number, year: number) {
@@ -102,6 +158,170 @@ function monthBounds(month: number, year: number) {
   return {
     start: format(startOfMonth(d), "yyyy-MM-dd"),
     end: format(endOfMonth(d), "yyyy-MM-dd"),
+  };
+}
+
+// ─── Foto ejecutiva para el Inicio ───────────────────────────────────────────
+// Pocos números, pensados para responder "¿cómo está el sindicato hoy?".
+
+export async function getHomeSnapshot(): Promise<HomeSnapshot> {
+  const now = new Date();
+  const { start, end } = monthBounds(now.getMonth() + 1, now.getFullYear());
+
+  const [affiliateRows, benefitRows, monthRows, overdueRows, profitRows] = await Promise.all([
+    db.execute(sql`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status = 'active')::int AS active,
+        COUNT(*) FILTER (WHERE status = 'active' AND (gross_salary IS NULL OR gross_salary <= 0))::int AS active_without_salary
+      FROM affiliates
+    `),
+    db.execute(sql`
+      SELECT
+        COUNT(*)::int AS active_benefits,
+        COUNT(DISTINCT affiliate_id)::int AS affiliates_with_benefit
+      FROM benefits
+      WHERE status = 'active'
+    `),
+    db.execute(sql`
+      SELECT
+        COALESCE(SUM(amount::numeric) FILTER (WHERE status IN ('pending','overdue') AND due_date BETWEEN ${start} AND ${end}), 0) AS due_amount,
+        COALESCE(COUNT(*) FILTER (WHERE status IN ('pending','overdue') AND due_date BETWEEN ${start} AND ${end}), 0)::int AS due_count,
+        COALESCE(SUM(amount::numeric) FILTER (WHERE status = 'paid' AND paid_date BETWEEN ${start} AND ${end}), 0) AS paid_amount,
+        COALESCE(COUNT(*) FILTER (WHERE status = 'paid' AND paid_date BETWEEN ${start} AND ${end}), 0)::int AS paid_count
+      FROM installments
+    `),
+    db.execute(sql`
+      SELECT
+        COALESCE(SUM(amount::numeric), 0) AS overdue_amount,
+        COUNT(*)::int AS overdue_count,
+        COUNT(DISTINCT affiliate_id)::int AS overdue_affiliates
+      FROM installments
+      WHERE status = 'overdue'
+    `),
+    db.execute(sql`
+      SELECT COALESCE(SUM(union_profit_amount::numeric), 0) AS union_profit
+      FROM benefits
+      WHERE date BETWEEN ${start} AND ${end}
+        AND status != 'cancelled'
+    `),
+  ]);
+
+  const aff = affiliateRows.rows[0] as { total: number; active: number; active_without_salary: number };
+  const ben = benefitRows.rows[0] as { active_benefits: number; affiliates_with_benefit: number };
+  const mon = monthRows.rows[0] as { due_amount: string; due_count: number; paid_amount: string; paid_count: number };
+  const ovd = overdueRows.rows[0] as { overdue_amount: string; overdue_count: number; overdue_affiliates: number };
+  const prf = profitRows.rows[0] as { union_profit: string };
+
+  return {
+    totalAffiliates: aff?.total ?? 0,
+    activeAffiliates: aff?.active ?? 0,
+    activeWithoutSalary: aff?.active_without_salary ?? 0,
+    activeBenefits: ben?.active_benefits ?? 0,
+    affiliatesWithActiveBenefit: ben?.affiliates_with_benefit ?? 0,
+    dueThisMonthAmount: roundMoney(Number(mon?.due_amount ?? 0)),
+    dueThisMonthCount: mon?.due_count ?? 0,
+    collectedThisMonthAmount: roundMoney(Number(mon?.paid_amount ?? 0)),
+    collectedThisMonthCount: mon?.paid_count ?? 0,
+    unionProfitThisMonth: roundMoney(Number(prf?.union_profit ?? 0)),
+    overdueAmount: roundMoney(Number(ovd?.overdue_amount ?? 0)),
+    overdueCount: ovd?.overdue_count ?? 0,
+    overdueAffiliates: ovd?.overdue_affiliates ?? 0,
+  };
+}
+
+// ─── Seguimiento para Análisis ───────────────────────────────────────────────
+
+export async function getAnalysisInsights(): Promise<AnalysisInsights> {
+  const [nearLimitRows, endingRows, topUsageRows] = await Promise.all([
+    db.execute(sql`
+      SELECT
+        acs.affiliate_id AS "affiliateId",
+        acs.full_name    AS "fullName",
+        acs.dni,
+        acs.credit_limit_30::numeric  AS credit_limit,
+        acs.active_discounts::numeric AS active_discounts,
+        COALESCE(acs.available_amount::numeric, 0) AS available_amount
+      FROM affiliate_credit_summary acs
+      WHERE acs.status = 'active'
+        AND acs.gross_salary IS NOT NULL
+        AND acs.credit_limit_30::numeric > 0
+        AND (acs.active_discounts::numeric / NULLIF(acs.credit_limit_30::numeric, 0)) >= 0.8
+      ORDER BY (acs.active_discounts::numeric / NULLIF(acs.credit_limit_30::numeric, 0)) DESC NULLS LAST
+      LIMIT 10
+    `),
+    db.execute(sql`
+      SELECT
+        b.id,
+        b.affiliate_id AS "affiliateId",
+        a.full_name    AS "fullName",
+        b.commerce,
+        b.type,
+        b.installment_amount AS "installmentAmount",
+        COUNT(i.id) FILTER (WHERE i.status IN ('pending','overdue'))::int AS pending_count,
+        MAX(i.due_date) FILTER (WHERE i.status != 'cancelled') AS last_due_date
+      FROM benefits b
+      JOIN affiliates a ON a.id = b.affiliate_id
+      LEFT JOIN installments i ON i.benefit_id = b.id
+      WHERE b.status = 'active'
+      GROUP BY b.id, a.full_name
+      HAVING COUNT(i.id) FILTER (WHERE i.status IN ('pending','overdue')) = 1
+      ORDER BY MAX(i.due_date) FILTER (WHERE i.status != 'cancelled') ASC NULLS LAST
+      LIMIT 10
+    `),
+    db.execute(sql`
+      SELECT
+        acs.affiliate_id AS "affiliateId",
+        acs.full_name    AS "fullName",
+        acs.dni,
+        COALESCE(acs.total_committed::numeric, 0) AS total_committed,
+        COALESCE(ab.active_benefits, 0)::int AS active_benefits
+      FROM affiliate_credit_summary acs
+      LEFT JOIN (
+        SELECT affiliate_id, COUNT(*)::int AS active_benefits
+        FROM benefits WHERE status = 'active' GROUP BY affiliate_id
+      ) ab ON ab.affiliate_id = acs.affiliate_id
+      WHERE COALESCE(acs.total_committed::numeric, 0) > 0
+      ORDER BY acs.total_committed::numeric DESC
+      LIMIT 5
+    `),
+  ]);
+
+  type NL = { affiliateId: string; fullName: string; dni: string; credit_limit: string; active_discounts: string; available_amount: string };
+  type ES = { id: string; affiliateId: string; fullName: string; commerce: string | null; type: string; installmentAmount: string; pending_count: number; last_due_date: string | null };
+  type TU = { affiliateId: string; fullName: string; dni: string; total_committed: string; active_benefits: number };
+
+  return {
+    nearLimitAffiliates: (nearLimitRows.rows as NL[]).map((r) => {
+      const limit = Number(r.credit_limit);
+      const used = Number(r.active_discounts);
+      return {
+        affiliateId: r.affiliateId,
+        fullName: r.fullName,
+        dni: r.dni,
+        creditLimit30: roundMoney(limit),
+        activeDiscounts: roundMoney(used),
+        availableAmount: roundMoney(Number(r.available_amount)),
+        usagePercent: limit > 0 ? Math.round((used / limit) * 100) : 0,
+      };
+    }),
+    endingSoonBenefits: (endingRows.rows as ES[]).map((r) => ({
+      id: r.id,
+      affiliateId: r.affiliateId,
+      fullName: r.fullName,
+      commerce: r.commerce,
+      type: r.type,
+      installmentAmount: r.installmentAmount,
+      pendingCount: r.pending_count,
+      lastDueDate: r.last_due_date,
+    })),
+    topUsageAffiliates: (topUsageRows.rows as TU[]).map((r) => ({
+      affiliateId: r.affiliateId,
+      fullName: r.fullName,
+      dni: r.dni,
+      activeBenefits: r.active_benefits,
+      totalCommitted: roundMoney(Number(r.total_committed)),
+    })),
   };
 }
 
