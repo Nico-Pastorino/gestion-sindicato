@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ChevronLeft, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AffiliateForm } from "@/components/affiliates/affiliate-form";
+import { SensitiveText } from "@/components/privacy/sensitive-value";
 import { getAffiliateById, getAreas } from "@/lib/services/affiliates.service";
 
 interface PageProps {
@@ -26,7 +27,7 @@ export default async function EditAffiliatePage({ params }: PageProps) {
   if (!data) notFound();
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-5xl">
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link href={`/afiliados/${id}`}>
@@ -39,7 +40,7 @@ export default async function EditAffiliatePage({ params }: PageProps) {
           Editar Afiliado
         </h1>
         <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-          {data.fullName} · DNI {data.dni}
+          {data.fullName} · <SensitiveText value={data.dni} type="dni" prefix="DNI " />
         </p>
       </div>
 

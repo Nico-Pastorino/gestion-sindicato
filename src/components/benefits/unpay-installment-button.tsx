@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { SensitiveValue } from "@/components/privacy/sensitive-value";
 import { Loader2, RotateCcw } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/credit";
 import { formatDate } from "@/lib/utils/date";
@@ -75,7 +76,7 @@ export function UnpayInstallmentButton({
           </DialogTitle>
           <DialogDescription>
             Cuota {installmentNumber}/{totalInstallments} - Vencimiento:{" "}
-            {formatDate(dueDate)} - Monto: <strong>{formatCurrency(amount)}</strong>
+            {formatDate(dueDate)} - Monto: <strong><SensitiveValue value={formatCurrency(amount)} /></strong>
           </DialogDescription>
         </DialogHeader>
 

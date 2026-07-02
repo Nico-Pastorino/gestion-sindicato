@@ -53,11 +53,15 @@ export async function POST(req: NextRequest) {
     const installmentAmountRaw = typeof raw.installmentAmount === "string"
       ? parseCurrencyInput(raw.installmentAmount)
       : raw.installmentAmount;
+    const commerceRetentionRateRaw = typeof raw.commerceRetentionRate === "string"
+      ? Number(raw.commerceRetentionRate.replace(",", "."))
+      : raw.commerceRetentionRate;
 
     const normalized: Record<string, unknown> = {
       ...raw,
       totalAmount: totalAmountRaw,
       installmentAmount: installmentAmountRaw,
+      commerceRetentionRate: commerceRetentionRateRaw ?? 0,
     };
 
     if (isDev) {
@@ -91,6 +95,9 @@ export async function POST(req: NextRequest) {
     if (normalized.type === "supermercado" && Number(normalized.installmentsCount) !== 1) {
       return NextResponse.json({ ok: false, message: "El beneficio Comercio solo puede tener 1 cuota." }, { status: 400 });
     }
+    if (normalized.type === "supermercado" && Number(normalized.commerceRetentionRate) <= 0) {
+      return NextResponse.json({ ok: false, message: "El porcentaje de retención del comercio es obligatorio." }, { status: 400 });
+    }
 
     const input = createBenefitSchema.parse(normalized);
     const result = await createBenefit(input);
@@ -120,6 +127,8 @@ export async function POST(req: NextRequest) {
         type: "El tipo de beneficio",
         date: "La fecha",
         firstDueDate: "El primer mes de descuento",
+        commerceRetentionRate: "El porcentaje de retención",
+        commerce: "El comercio",
       };
       const msg = firstIssue
         ? `${fieldLabel[String(firstIssue.path[0])] ?? "Campo"}: ${firstIssue.message}`

@@ -4,7 +4,7 @@ import { eq, and, sql, inArray } from "drizzle-orm";
 import { checkAndFinishBenefit } from "./benefits.service";
 import type { PayInstallmentInput, InstallmentFiltersInput } from "@/lib/validations/installment.schema";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
-import { getCutoffDateForAutoPayment } from "@/lib/utils/date";
+import { getCutoffDateForAutoPayment, getPaidDateForAutoPayment } from "@/lib/utils/date";
 
 // ─── Marcar cuota como pagada ─────────────────────────────────────────────────
 
@@ -119,7 +119,17 @@ export async function unpayInstallment(id: string, userId?: string) {
 
 export async function autoPayDueInstallments(processDate = new Date()) {
   const cutoffDate = getCutoffDateForAutoPayment(processDate);
-  const paidDate = processDate.toISOString().split("T")[0];
+  const paidDate = getPaidDateForAutoPayment(processDate);
+
+  if (!cutoffDate || !paidDate) {
+    return {
+      processedAt: processDate.toISOString().split("T")[0],
+      cutoffDate,
+      updatedCount: 0,
+      benefitIds: [],
+      skippedReason: "auto_payment_runs_from_day_5",
+    };
+  }
 
   const updated = await db.transaction(async (tx) => {
     const rows = await tx
@@ -167,6 +177,7 @@ export async function autoPayDueInstallments(processDate = new Date()) {
           autoPaid: true,
           paidBy: "system",
           cutoffDate,
+          rule: "auto_payment_day_5_previous_month",
         } as Record<string, unknown>,
       }))
     );
@@ -246,6 +257,54 @@ export async function listInstallments(input: InstallmentFiltersInput) {
     limit,
     totalPages: Math.ceil(((countResult.rows[0] as { count: number })?.count ?? 0) / limit),
   };
+}
+
+// ─── Listar cuotas auto-cobradas para conciliación mensual ───────────────────
+
+export async function listAutoPaidInstallmentsForReview(input: {
+  month: number;
+  year: number;
+  search?: string;
+}) {
+  const { month, year, search } = input;
+  let baseWhere = sql`
+    i.status = 'paid'
+    AND i.auto_paid = true
+    AND i.paid_by = 'system'
+    AND EXTRACT(MONTH FROM i.paid_date) = ${month}
+    AND EXTRACT(YEAR FROM i.paid_date) = ${year}
+  `;
+
+  if (search) {
+    const q = `%${search}%`;
+    baseWhere = sql`${baseWhere} AND (a.full_name ILIKE ${q} OR a.dni ILIKE ${q} OR a.legajo ILIKE ${q})`;
+  }
+
+  const rows = await db.execute(sql`
+    SELECT
+      i.id,
+      i.benefit_id         AS "benefitId",
+      i.affiliate_id       AS "affiliateId",
+      a.full_name          AS "affiliateName",
+      a.dni                AS "affiliateDni",
+      a.legajo             AS "affiliateLegajo",
+      a.area               AS "affiliateArea",
+      b.type               AS "benefitType",
+      b.commerce,
+      i.installment_number AS "installmentNumber",
+      i.total_installments AS "totalInstallments",
+      i.due_date           AS "dueDate",
+      i.paid_date          AS "paidDate",
+      i.amount,
+      i.status
+    FROM installments i
+    JOIN affiliates a ON a.id = i.affiliate_id
+    JOIN benefits b ON b.id = i.benefit_id
+    WHERE ${baseWhere}
+    ORDER BY i.paid_date DESC, a.full_name ASC
+  `);
+
+  return rows.rows;
 }
 
 // ─── Marcar cuotas vencidas automáticamente ───────────────────────────────────

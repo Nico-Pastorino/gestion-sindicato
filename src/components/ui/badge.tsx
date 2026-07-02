@@ -64,3 +64,35 @@ export function BenefitTypeBadge({ type }: { type: BenefitType }) {
   const { label, className } = BENEFIT_TYPE_MAP[type] ?? { label: type, className: "" };
   return <span className={className}>{label}</span>;
 }
+
+const COLLECTION_METHOD_BADGE =
+  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset";
+
+export function CollectionMethodBadge({
+  autoPaid,
+  paidBy,
+}: {
+  autoPaid?: boolean | null;
+  paidBy?: string | null;
+}) {
+  const isAuto = Boolean(autoPaid) || paidBy === "system";
+  if (isAuto) {
+    return (
+      <span
+        className={`${COLLECTION_METHOD_BADGE} bg-blue-50 text-blue-700 ring-blue-600/20`}
+        title="Cobro automático por retención municipal"
+      >
+        Automático
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`${COLLECTION_METHOD_BADGE} bg-slate-50 text-slate-600 ring-slate-500/20`}
+      title="Cobro registrado manualmente"
+    >
+      Manual
+    </span>
+  );
+}

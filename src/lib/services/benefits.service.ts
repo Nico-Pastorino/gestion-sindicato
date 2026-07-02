@@ -2,7 +2,6 @@ import { db } from "@/lib/db";
 // Importación estática — no usar dynamic import() dentro de transacciones
 import { benefits, installments, auditLogs } from "@/lib/db/schema";
 import { eq, and, gte, lte, inArray, sql } from "drizzle-orm";
-import { logAudit } from "./audit.service";
 import { notifyBenefitCompleted } from "./whatsapp.service";
 import { getAffiliateCreditSummary } from "./affiliates.service";
 import { generateInstallmentDueDates } from "@/lib/utils/date";
@@ -155,12 +154,19 @@ export async function createBenefit(input: CreateBenefitInput, userId?: string) 
     );
   }
 
-  // 5. Calcular campos derivados de interés
+  // 5. Calcular campos derivados de interés y retención comercial
   const totalRepaymentAmount = roundMoney(input.installmentAmount * input.installmentsCount);
   const interestAmount = roundMoney(Math.max(0, totalRepaymentAmount - input.totalAmount));
   const interestRate = input.totalAmount > 0
     ? roundMoney((interestAmount / input.totalAmount) * 100)
     : 0;
+  const commerceRetentionRate = input.type === "supermercado"
+    ? roundMoney(input.commerceRetentionRate ?? 0)
+    : 0;
+  const commerceRetentionAmount = input.type === "supermercado"
+    ? roundMoney(input.totalAmount * (commerceRetentionRate / 100))
+    : 0;
+  const unionProfitAmount = roundMoney(interestAmount + commerceRetentionAmount);
 
   // 6. Transacción atómica: benefit + installments + audit
   const result = await db.transaction(async (tx) => {
@@ -177,6 +183,8 @@ export async function createBenefit(input: CreateBenefitInput, userId?: string) 
         totalRepaymentAmount: String(totalRepaymentAmount),
         interestAmount: String(interestAmount),
         interestRate: String(interestRate),
+        commerceRetentionRate: String(commerceRetentionRate),
+        unionProfitAmount: String(unionProfitAmount),
         firstDueDate: calculatedFirstDueDate,
         status: "active",
         observations: input.observations ?? null,
@@ -215,6 +223,9 @@ export async function createBenefit(input: CreateBenefitInput, userId?: string) 
         totalRepaymentAmount,
         interestAmount,
         interestRate,
+        commerceRetentionRate,
+        commerceRetentionAmount,
+        unionProfitAmount,
       } as Record<string, unknown>,
     });
 

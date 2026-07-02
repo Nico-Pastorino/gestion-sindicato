@@ -67,3 +67,34 @@ body {
 .badge-cancelled { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-500/20; }
 .badge-finished  { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-600/20; }
 .badge-inactive  { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-500 ring-1 ring-inset ring-gray-400/20; }
+
+/* ─── Impresión / PDF ────────────────────────────────────────────────────────
+   El layout usa contenedores con altura fija y overflow oculto; al imprimir hay
+   que liberarlos para que salga TODO el contenido, no solo lo visible. */
+@media print {
+  @page { margin: 12mm; }
+
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  /* Liberar los contenedores del shell (flex h-screen overflow-hidden / main overflow-y-auto) */
+  .h-screen { height: auto !important; }
+  .overflow-hidden,
+  .overflow-y-auto,
+  .overflow-x-auto { overflow: visible !important; }
+  main { overflow: visible !important; height: auto !important; }
+
+  /* Ocultar navegación lateral, barra superior y controles no imprimibles */
+  aside,
+  header,
+  .print-hide { display: none !important; }
+
+  /* Que se impriman fondos y colores (badges, barras, semáforos) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

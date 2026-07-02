@@ -29,6 +29,8 @@ export type {
 export type UserRole = "admin" | "operator" | "readonly";
 
 export type AffiliateStatus = "active" | "inactive";
+export type AffiliateSex = "masculino" | "femenino" | "otro" | "prefiero_no_responder";
+export type EmploymentType = "planta_permanente" | "planta_temporaria" | "jubilado";
 
 export type BenefitType = "ayuda_economica" | "supermercado" | "otro";
 
@@ -60,6 +62,9 @@ export interface AffiliateCreditSummary {
   dni: string;
   legajo: string | null;
   area: string | null;
+  sex?: AffiliateSex | null;
+  employmentType?: EmploymentType | null;
+  hireDate?: string | null;
   status: AffiliateStatus;
   /** null si el afiliado todavía no tiene salario cargado */
   grossSalary: string | null;

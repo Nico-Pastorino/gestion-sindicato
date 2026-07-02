@@ -11,7 +11,7 @@ import {
   uniqueIndex,
   index,
 } from "drizzle-orm/pg-core";
-import { relations, sql } from "drizzle-orm";
+import { relations } from "drizzle-orm";
 
 // ─── Timestamps helper ────────────────────────────────────────────────────────
 
@@ -48,6 +48,35 @@ export const affiliates = pgTable(
     dni: text("dni").notNull(),
     legajo: text("legajo"),
     area: text("area"),
+    sex: text("sex", {
+      enum: ["masculino", "femenino", "otro", "prefiero_no_responder"],
+    }),
+    employmentType: text("employment_type", {
+      enum: ["planta_permanente", "planta_temporaria", "jubilado"],
+    }),
+    hireDate: date("hire_date"),
+    sector: text("sector"),
+    position: text("position"),
+    workShift: text("work_shift"),
+    affiliationDate: date("affiliation_date"),
+    alternatePhone: text("alternate_phone"),
+    email: text("email"),
+    cuil: text("cuil"),
+    birthDate: date("birth_date"),
+    maritalStatus: text("marital_status"),
+    streetAddress: text("street_address"),
+    addressNumber: text("address_number"),
+    neighborhood: text("neighborhood"),
+    city: text("city"),
+    province: text("province"),
+    postalCode: text("postal_code"),
+    emergencyContactName: text("emergency_contact_name"),
+    emergencyContactRelation: text("emergency_contact_relation"),
+    emergencyContactPhone: text("emergency_contact_phone"),
+    documentationStatus: text("documentation_status", {
+      enum: ["complete", "pending", "missing"],
+    }).notNull().default("pending"),
+    privateNotes: text("private_notes"),
     grossSalary: numeric("gross_salary", { precision: 14, scale: 2 }),
     phone: text("phone"),
     status: text("status", { enum: ["active", "inactive"] })
@@ -60,6 +89,9 @@ export const affiliates = pgTable(
     uniqueIndex("affiliates_legajo_idx").on(t.legajo),
     index("affiliates_full_name_idx").on(t.fullName),
     index("affiliates_status_idx").on(t.status),
+    index("affiliates_email_idx").on(t.email),
+    index("affiliates_cuil_idx").on(t.cuil),
+    index("affiliates_documentation_status_idx").on(t.documentationStatus),
   ]
 );
 
@@ -86,6 +118,8 @@ export const benefits = pgTable(
     totalRepaymentAmount: numeric("total_repayment_amount", { precision: 14, scale: 2 }).notNull(),
     interestAmount: numeric("interest_amount", { precision: 14, scale: 2 }).notNull().default("0"),
     interestRate: numeric("interest_rate", { precision: 8, scale: 4 }).notNull().default("0"),
+    commerceRetentionRate: numeric("commerce_retention_rate", { precision: 8, scale: 4 }).notNull().default("0"),
+    unionProfitAmount: numeric("union_profit_amount", { precision: 14, scale: 2 }).notNull().default("0"),
     firstDueDate: date("first_due_date"),
     status: text("status", { enum: ["active", "cancelled", "finished"] })
       .notNull()

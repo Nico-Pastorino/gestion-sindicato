@@ -7,6 +7,7 @@ import {
   Users,
   Gift,
   FileDown,
+  WalletCards,
   Building2,
   ChevronRight,
 } from "lucide-react";
@@ -20,9 +21,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: "/dashboard",       label: "Dashboard",      icon: LayoutDashboard },
+  { href: "/dashboard",       label: "Inicio",         icon: LayoutDashboard },
   { href: "/afiliados",       label: "Afiliados",      icon: Users },
   { href: "/beneficios",      label: "Beneficios",     icon: Gift },
+  { href: "/cobranza",        label: "Cobranza",       icon: WalletCards },
   { href: "/exportar",        label: "Exportar",       icon: FileDown },
 ];
 

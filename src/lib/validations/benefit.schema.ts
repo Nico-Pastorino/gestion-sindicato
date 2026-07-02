@@ -28,6 +28,12 @@ export const createBenefitSchema = z
       .trim()
       .optional()
       .nullable(),
+    commerceRetentionRate: z
+      .number()
+      .min(0, "El porcentaje de retención no puede ser negativo")
+      .max(100, "El porcentaje de retención no puede superar 100%")
+      .optional()
+      .default(0),
     // Monto otorgado al afiliado / capital
     totalAmount: moneyField("El monto otorgado"),
     installmentsCount: z
@@ -51,6 +57,23 @@ export const createBenefitSchema = z
         path: ["installmentsCount"],
         message: "El beneficio Comercio solo puede tener 1 cuota",
       });
+    }
+
+    if (data.type === "supermercado") {
+      if (!data.commerce) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["commerce"],
+          message: "Seleccioná o ingresá el comercio adherido",
+        });
+      }
+      if (!data.commerceRetentionRate || data.commerceRetentionRate <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["commerceRetentionRate"],
+          message: "La retención del comercio debe ser mayor a 0%",
+        });
+      }
     }
 
     if (data.type === "ayuda_economica" && data.installmentsCount > 3) {

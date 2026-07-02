@@ -13,6 +13,9 @@ import {
   TrendingUp,
   Hash,
   AlertTriangle,
+  BriefcaseBusiness,
+  UserRound,
+  Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,13 +33,16 @@ import {
   AffiliateStatusBadge,
   BenefitStatusBadge,
   BenefitTypeBadge,
+  CollectionMethodBadge,
   InstallmentStatusBadge,
 } from "@/components/ui/badge";
+import { ActivityTimeline } from "@/components/audit/activity-timeline";
 import { CreditBar } from "@/components/shared/credit-bar";
 import { UnpayInstallmentButton } from "@/components/benefits/unpay-installment-button";
 import { formatCurrency } from "@/lib/utils/credit";
 import { formatDate } from "@/lib/utils/date";
 import { getAffiliateById, getAffiliateCreditSummary } from "@/lib/services/affiliates.service";
+import { getAffiliateActivity } from "@/lib/services/audit.service";
 import { calculateBenefitFinancials, aggregateBenefitFinancials } from "@/lib/utils/financial";
 
 export const dynamic = "force-dynamic";
@@ -54,9 +60,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function AffiliateDetailPage({ params }: PageProps) {
   const { id } = await params;
 
-  const [data, credit] = await Promise.all([
+  const [data, credit, activity] = await Promise.all([
     getAffiliateById(id),
     getAffiliateCreditSummary(id),
+    getAffiliateActivity(id),
   ]);
 
   if (!data) notFound();
@@ -65,13 +72,19 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
 
   const activeBenefits = data.benefits.filter((b) => b.status === "active");
   const finishedBenefits = data.benefits.filter((b) => b.status === "finished");
-  const cancelledBenefits = data.benefits.filter((b) => b.status === "cancelled");
-
   const allInstallments = data.benefits.flatMap((b) => b.installments);
   const pendingInstallments = allInstallments.filter(
     (i) => i.status === "pending" || i.status === "overdue"
   );
   const paidInstallments = allInstallments.filter((i) => i.status === "paid");
+  const today = new Date().toISOString().split("T")[0];
+  const dueInstallmentsForScore = allInstallments.filter(
+    (i) => i.status !== "cancelled" && i.dueDate <= today
+  );
+  const paidDueInstallments = dueInstallmentsForScore.filter((i) => i.status === "paid");
+  const complianceRate = dueInstallmentsForScore.length > 0
+    ? Math.round((paidDueInstallments.length / dueInstallmentsForScore.length) * 100)
+    : 100;
 
   // Resumen financiero agregado de todos los beneficios no cancelados
   const nonCancelledBenefits = data.benefits.filter((b) => b.status !== "cancelled");
@@ -150,57 +163,30 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Cards de crédito */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-xs font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
-              Salario Bruto
-            </p>
-            <p className="text-xl font-bold mt-1">
-              {hasSalary ? formatCurrency(data.grossSalary!) : (
-                <span className="text-[hsl(var(--muted-foreground))] text-base">Pendiente</span>
-              )}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-xs font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
-              Tope Mensual 30%
-            </p>
-            <p className="text-xl font-bold mt-1 text-blue-600">
-              {credit?.creditLimit30 != null
-                ? formatCurrency(credit.creditLimit30)
-                : <span className="text-[hsl(var(--muted-foreground))] text-base">Pendiente</span>}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-xs font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
-              Descuentos Activos
-            </p>
-            <p className="text-xl font-bold mt-1 text-yellow-600">
-              {formatCurrency(credit?.activeDiscounts ?? "0")}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="border-2 border-green-200">
-          <CardContent className="p-5">
-            <p className="text-xs font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
-              Cupo Mensual Libre
-            </p>
-            <p className="text-xl font-bold mt-1 text-green-600">
-              {credit?.availableAmount != null
-                ? formatCurrency(credit.availableAmount)
-                : <span className="text-[hsl(var(--muted-foreground))] text-base">Pendiente</span>}
-            </p>
-          </CardContent>
-        </Card>
+      {/* Capacidad mensual y cumplimiento */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <CreditMetricCard
+          label="Salario bruto"
+          value={hasSalary ? formatCurrency(data.grossSalary!) : "Pendiente"}
+        />
+        <CreditMetricCard
+          label="Máximo a descontar por mes (30% del sueldo)"
+          value={credit?.creditLimit30 != null ? formatCurrency(credit.creditLimit30) : "Pendiente"}
+          tone="blue"
+        />
+        <CreditMetricCard
+          label="Ya comprometido este mes"
+          value={formatCurrency(credit?.activeDiscounts ?? "0")}
+          tone="amber"
+        />
+        <CreditMetricCard
+          label="Disponible para descontar"
+          value={credit?.availableAmount != null ? formatCurrency(credit.availableAmount) : "Pendiente"}
+          tone="green"
+          emphasized
+        />
       </div>
 
-      {/* Barra de crédito */}
       {credit && hasSalary && (
         <Card>
           <CardContent className="p-5">
@@ -209,10 +195,93 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
               creditLimit30={credit.creditLimit30 ?? "0"}
               activeDiscounts={credit.activeDiscounts}
               availableAmount={credit.availableAmount ?? "0"}
+              showLabels
             />
           </CardContent>
         </Card>
       )}
+
+      <PaymentComplianceCard
+        rate={complianceRate}
+        paid={paidDueInstallments.length}
+        total={dueInstallmentsForScore.length}
+      />
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <UserRound className="h-4 w-4" />
+              Datos personales
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <InfoItem label="DNI" value={data.dni} />
+            <InfoItem label="CUIL" value={data.cuil ?? "Sin dato"} />
+            <InfoItem label="Sexo" value={formatSex(data.sex)} />
+            <InfoItem label="Fecha de nacimiento" value={data.birthDate ? formatDate(data.birthDate) : "Sin dato"} />
+            <InfoItem label="Estado civil" value={data.maritalStatus ?? "Sin dato"} />
+            <InfoItem label="Teléfono" value={data.phone ?? "Sin dato"} />
+            <InfoItem label="Teléfono alternativo" value={data.alternatePhone ?? "Sin dato"} />
+            <InfoItem label="Email" value={data.email ?? "Sin dato"} />
+            <InfoItem label="Estado" value={data.status === "active" ? "Activo" : "Inactivo"} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BriefcaseBusiness className="h-4 w-4" />
+              Datos laborales
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <InfoItem label="Área" value={data.area ?? "Sin dato"} />
+            <InfoItem label="Sector" value={data.sector ?? "Sin dato"} />
+            <InfoItem label="Cargo" value={data.position ?? "Sin dato"} />
+            <InfoItem label="Turno" value={data.workShift ?? "Sin dato"} />
+            <InfoItem label="Situación de revista" value={formatEmploymentType(data.employmentType)} />
+            <InfoItem label="Fecha de ingreso" value={data.hireDate ? formatDate(data.hireDate) : "Sin dato"} />
+            <InfoItem label="Antigüedad" value={data.hireDate ? calculateSeniority(data.hireDate) : "Sin dato"} />
+            <InfoItem label="Afiliado desde" value={data.affiliationDate ? formatDate(data.affiliationDate) : "Sin dato"} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MapPin className="h-4 w-4" />
+              Domicilio
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <InfoItem label="Calle" value={data.streetAddress ?? "Sin dato"} />
+            <InfoItem label="Número" value={data.addressNumber ?? "Sin dato"} />
+            <InfoItem label="Barrio" value={data.neighborhood ?? "Sin dato"} />
+            <InfoItem label="Localidad" value={data.city ?? "Sin dato"} />
+            <InfoItem label="Provincia" value={data.province ?? "Sin dato"} />
+            <InfoItem label="Código postal" value={data.postalCode ?? "Sin dato"} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Phone className="h-4 w-4" />
+              Contacto y documentación
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <InfoItem label="Contacto emergencia" value={data.emergencyContactName ?? "Sin dato"} />
+            <InfoItem label="Vínculo" value={data.emergencyContactRelation ?? "Sin dato"} />
+            <InfoItem label="Teléfono emergencia" value={data.emergencyContactPhone ?? "Sin dato"} />
+            <InfoItem label="Documentación" value={formatDocumentationStatus(data.documentationStatus)} />
+            <div className="sm:col-span-2">
+              <InfoItem label="Observaciones internas" value={data.privateNotes ?? "Sin dato"} />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Resumen financiero agregado */}
       {nonCancelledBenefits.length > 0 && (
@@ -272,6 +341,14 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
             )}
           </TabsTrigger>
           <TabsTrigger value="historial">Historial</TabsTrigger>
+          <TabsTrigger value="actividad">
+            Actividad
+            {activity.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-slate-100 text-slate-700 text-xs px-1.5 py-0.5">
+                {activity.length}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="activos">
@@ -427,8 +504,121 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="actividad">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Actividad del afiliado
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ActivityTimeline items={activity} />
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function CreditMetricCard({
+  label,
+  value,
+  tone,
+  emphasized = false,
+}: {
+  label: string;
+  value: string;
+  tone?: "blue" | "amber" | "green";
+  emphasized?: boolean;
+}) {
+  const toneClass = {
+    blue: "text-blue-600",
+    amber: "text-amber-600",
+    green: "text-green-600",
+  }[tone ?? "blue"];
+
+  return (
+    <Card className={emphasized ? "border-2 border-green-200" : ""}>
+      <CardContent className="p-5">
+        <p className="min-h-8 text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+          {label}
+        </p>
+        <p className={`mt-1 text-2xl font-bold leading-tight ${tone ? toneClass : ""}`}>
+          {value}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PaymentComplianceCard({
+  rate,
+  paid,
+  total,
+}: {
+  rate: number;
+  paid: number;
+  total: number;
+}) {
+  const label = total === 0
+    ? "Sin vencimientos"
+    : rate >= 95
+      ? "Excelente"
+      : rate >= 75
+        ? "Bueno"
+        : rate >= 50
+          ? "Regular"
+          : "Crítico";
+  const tone = rate >= 95 ? "green" : rate >= 75 ? "blue" : rate >= 50 ? "amber" : "red";
+  const color = {
+    green: "text-green-700 bg-green-50 border-green-200",
+    blue: "text-blue-700 bg-blue-50 border-blue-200",
+    amber: "text-amber-700 bg-amber-50 border-amber-200",
+    red: "text-red-700 bg-red-50 border-red-200",
+  }[tone];
+  const bar = {
+    green: "bg-green-500",
+    blue: "bg-blue-500",
+    amber: "bg-amber-500",
+    red: "bg-red-500",
+  }[tone];
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
+              <Gauge className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base font-semibold">Cumplimiento de pagos</h2>
+                <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${color}`}>
+                  {label}
+                </span>
+              </div>
+              <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                {paid} de {total} cuotas vencidas cobradas
+              </p>
+            </div>
+          </div>
+          <p className={`text-3xl font-bold ${tone === "red" ? "text-red-700" : tone === "amber" ? "text-amber-700" : tone === "blue" ? "text-blue-700" : "text-green-700"}`}>
+            {rate}%
+          </p>
+        </div>
+        <div className="h-2.5 w-full rounded-full bg-[hsl(var(--muted))]">
+          <div className={`h-2.5 rounded-full ${bar}`} style={{ width: `${rate}%` }} />
+        </div>
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">
+          Porcentaje de cuotas ya vencidas que se cobraron por retención municipal o cobro manual.
+          No incluye cuotas por vencer ni canceladas.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -440,6 +630,66 @@ function AggMetric({ label, value, accent }: { label: string; value: string; acc
       <p className={`text-sm font-semibold ${accent ? colors[accent] : ""}`}>{value}</p>
     </div>
   );
+}
+
+function InfoItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border bg-[hsl(var(--muted))]/25 px-3 py-2">
+      <p className="text-xs text-[hsl(var(--muted-foreground))]">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function formatSex(value?: string | null) {
+  const labels: Record<string, string> = {
+    masculino: "Masculino",
+    femenino: "Femenino",
+    otro: "Otro",
+    prefiero_no_responder: "Prefiere no responder",
+  };
+
+  return value ? labels[value] ?? value : "Sin dato";
+}
+
+function formatEmploymentType(value?: string | null) {
+  const labels: Record<string, string> = {
+    planta_permanente: "Planta Permanente",
+    planta_temporaria: "Planta Temporaria",
+    jubilado: "Jubilado",
+  };
+
+  return value ? labels[value] ?? value : "Sin dato";
+}
+
+function formatDocumentationStatus(value?: string | null) {
+  const labels: Record<string, string> = {
+    complete: "Completa",
+    pending: "Pendiente",
+    missing: "Faltante",
+  };
+
+  return value ? labels[value] ?? value : "Pendiente";
+}
+
+function calculateSeniority(hireDate: string) {
+  const start = new Date(`${hireDate}T12:00:00`);
+  if (Number.isNaN(start.getTime())) return "Sin dato";
+
+  const now = new Date();
+  let years = now.getFullYear() - start.getFullYear();
+  let months = now.getMonth() - start.getMonth();
+
+  if (now.getDate() < start.getDate()) months -= 1;
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+
+  if (years <= 0 && months <= 0) return "Menos de 1 mes";
+  if (years <= 0) return `${months} mes${months !== 1 ? "es" : ""}`;
+  if (months <= 0) return `${years} año${years !== 1 ? "s" : ""}`;
+  return `${years} año${years !== 1 ? "s" : ""} y ${months} mes${months !== 1 ? "es" : ""}`;
 }
 
 function EmptyState({ icon, title, description, action }: {
@@ -460,6 +710,7 @@ function EmptyState({ icon, title, description, action }: {
 type InstallmentWithBenefit = {
   id: string; benefitId: string; installmentNumber: number; totalInstallments: number;
   dueDate: string; paidDate: string | null; amount: string; status: string;
+  autoPaid?: boolean | null; paidBy?: string | null;
   benefit?: { commerce: string | null; type: string };
 };
 
@@ -475,6 +726,7 @@ function InstallmentsTable({ installments }: { installments: InstallmentWithBene
           <TableHead className="hidden md:table-cell">Pago</TableHead>
           <TableHead>Monto</TableHead>
           <TableHead>Estado</TableHead>
+          <TableHead className="hidden lg:table-cell">Cobro</TableHead>
           <TableHead className="text-right">Acciones</TableHead>
         </TableRow>
       </TableHeader>
@@ -497,6 +749,13 @@ function InstallmentsTable({ installments }: { installments: InstallmentWithBene
             <TableCell className="text-sm font-semibold">{formatCurrency(i.amount)}</TableCell>
             <TableCell>
               <InstallmentStatusBadge status={i.status as "pending" | "paid" | "overdue" | "cancelled"} />
+            </TableCell>
+            <TableCell className="hidden lg:table-cell">
+              {i.status === "paid" ? (
+                <CollectionMethodBadge autoPaid={i.autoPaid} paidBy={i.paidBy} />
+              ) : (
+                <span className="text-sm text-[hsl(var(--muted-foreground))]">—</span>
+              )}
             </TableCell>
             <TableCell className="text-right">
               {i.status === "paid" && (

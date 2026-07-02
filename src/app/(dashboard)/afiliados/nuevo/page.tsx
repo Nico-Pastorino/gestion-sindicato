@@ -11,7 +11,7 @@ export default async function NewAffiliatePage() {
   const areas = await getAreas();
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-5xl">
       {/* Header */}
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">

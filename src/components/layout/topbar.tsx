@@ -1,8 +1,9 @@
 "use client";
 
-import { Bell, Search, Menu } from "lucide-react";
+import { Bell, Eye, EyeOff, Search, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { usePrivacy } from "@/contexts/privacy-context";
 
 interface TopbarProps {
   title?: string;
@@ -10,6 +11,8 @@ interface TopbarProps {
 }
 
 export function Topbar({ title, onMenuToggle }: TopbarProps) {
+  const { hidden, toggleHidden } = usePrivacy();
+
   return (
     <header className="flex h-16 shrink-0 items-center gap-4 border-b bg-white px-4 sm:px-6">
       {/* Mobile menu toggle */}
@@ -41,6 +44,17 @@ export function Topbar({ title, onMenuToggle }: TopbarProps) {
           className="pl-9 h-9 text-sm bg-[hsl(var(--muted))] border-transparent"
         />
       </div>
+
+      <Button
+        variant={hidden ? "default" : "outline"}
+        size="sm"
+        onClick={toggleHidden}
+        className="gap-2"
+        title={hidden ? "Mostrar datos sensibles" : "Ocultar datos sensibles"}
+      >
+        {hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        <span className="hidden sm:inline">{hidden ? "Privado" : "Visible"}</span>
+      </Button>
 
       {/* Notifications */}
       <Button variant="ghost" size="icon" className="relative">

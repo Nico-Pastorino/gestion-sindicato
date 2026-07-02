@@ -4,11 +4,12 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, Loader2, Save, User } from "lucide-react";
+import { AlertTriangle, BriefcaseBusiness, FileText, Loader2, MapPin, PhoneCall, Save, User } from "lucide-react";
 import { calculateCreditLimit, formatCurrency } from "@/lib/utils/credit";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import type { Affiliate } from "@/types";
@@ -34,6 +35,29 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
     dni: affiliate?.dni ?? "",
     legajo: affiliate?.legajo ?? "",
     area: affiliate?.area ?? "",
+    sex: affiliate?.sex ?? "",
+    employmentType: affiliate?.employmentType ?? "",
+    hireDate: affiliate?.hireDate ?? "",
+    sector: affiliate?.sector ?? "",
+    position: affiliate?.position ?? "",
+    workShift: affiliate?.workShift ?? "",
+    affiliationDate: affiliate?.affiliationDate ?? "",
+    alternatePhone: affiliate?.alternatePhone ?? "",
+    email: affiliate?.email ?? "",
+    cuil: affiliate?.cuil ?? "",
+    birthDate: affiliate?.birthDate ?? "",
+    maritalStatus: affiliate?.maritalStatus ?? "",
+    streetAddress: affiliate?.streetAddress ?? "",
+    addressNumber: affiliate?.addressNumber ?? "",
+    neighborhood: affiliate?.neighborhood ?? "",
+    city: affiliate?.city ?? "",
+    province: affiliate?.province ?? "",
+    postalCode: affiliate?.postalCode ?? "",
+    emergencyContactName: affiliate?.emergencyContactName ?? "",
+    emergencyContactRelation: affiliate?.emergencyContactRelation ?? "",
+    emergencyContactPhone: affiliate?.emergencyContactPhone ?? "",
+    documentationStatus: affiliate?.documentationStatus ?? "pending",
+    privateNotes: affiliate?.privateNotes ?? "",
     grossSalary: affiliate?.grossSalary ? Number(affiliate.grossSalary) : 0,
     phone: affiliate?.phone ?? "",
     status: affiliate?.status ?? "active",
@@ -69,6 +93,29 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
           dni: form.dni.trim(),
           legajo: form.legajo.trim() || null,
           area: form.area.trim() || null,
+          sex: form.sex || null,
+          employmentType: form.employmentType || null,
+          hireDate: form.hireDate || null,
+          sector: form.sector.trim() || null,
+          position: form.position.trim() || null,
+          workShift: form.workShift.trim() || null,
+          affiliationDate: form.affiliationDate || null,
+          alternatePhone: form.alternatePhone.trim() || null,
+          email: form.email.trim() || null,
+          cuil: form.cuil.trim() || null,
+          birthDate: form.birthDate || null,
+          maritalStatus: form.maritalStatus.trim() || null,
+          streetAddress: form.streetAddress.trim() || null,
+          addressNumber: form.addressNumber.trim() || null,
+          neighborhood: form.neighborhood.trim() || null,
+          city: form.city.trim() || null,
+          province: form.province.trim() || null,
+          postalCode: form.postalCode.trim() || null,
+          emergencyContactName: form.emergencyContactName.trim() || null,
+          emergencyContactRelation: form.emergencyContactRelation.trim() || null,
+          emergencyContactPhone: form.emergencyContactPhone.trim() || null,
+          documentationStatus: form.documentationStatus,
+          privateNotes: form.privateNotes.trim() || null,
           grossSalary: form.grossSalary > 0 ? form.grossSalary : null,
           phone: form.phone.trim() || null,
           status: form.status,
@@ -189,6 +236,73 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
               />
             </div>
 
+            <div className="space-y-1.5">
+              <Label htmlFor="alternatePhone">Teléfono alternativo</Label>
+              <Input
+                id="alternatePhone"
+                placeholder="Ej: 2616123456"
+                value={form.alternatePhone}
+                onChange={(e) => set("alternatePhone", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="nombre@correo.com"
+                value={form.email}
+                onChange={(e) => set("email", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="cuil">CUIL</Label>
+              <Input
+                id="cuil"
+                placeholder="Ej: 20-28456789-3"
+                value={form.cuil}
+                onChange={(e) => set("cuil", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="birthDate">Fecha de nacimiento</Label>
+              <Input
+                id="birthDate"
+                type="date"
+                value={form.birthDate}
+                onChange={(e) => set("birthDate", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="maritalStatus">Estado civil</Label>
+              <Input
+                id="maritalStatus"
+                placeholder="Ej: Soltero/a, Casado/a"
+                value={form.maritalStatus}
+                onChange={(e) => set("maritalStatus", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="sex">Sexo</Label>
+              <Select value={form.sex || "none"} onValueChange={(v) => set("sex", v === "none" ? "" : v)}>
+                <SelectTrigger id="sex">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin especificar</SelectItem>
+                  <SelectItem value="masculino">Masculino</SelectItem>
+                  <SelectItem value="femenino">Femenino</SelectItem>
+                  <SelectItem value="otro">Otro</SelectItem>
+                  <SelectItem value="prefiero_no_responder">Prefiero no responder</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Estado */}
             <div className="space-y-1.5">
               <Label htmlFor="status">Estado</Label>
@@ -209,13 +323,108 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            Domicilio
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
+              <Label htmlFor="streetAddress">Calle</Label>
+              <Input
+                id="streetAddress"
+                value={form.streetAddress}
+                onChange={(e) => set("streetAddress", e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="addressNumber">Número</Label>
+              <Input
+                id="addressNumber"
+                value={form.addressNumber}
+                onChange={(e) => set("addressNumber", e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="neighborhood">Barrio</Label>
+              <Input
+                id="neighborhood"
+                value={form.neighborhood}
+                onChange={(e) => set("neighborhood", e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="city">Localidad</Label>
+              <Input
+                id="city"
+                value={form.city}
+                onChange={(e) => set("city", e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="province">Provincia</Label>
+              <Input
+                id="province"
+                value={form.province}
+                onChange={(e) => set("province", e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="postalCode">Código postal</Label>
+              <Input
+                id="postalCode"
+                value={form.postalCode}
+                onChange={(e) => set("postalCode", e.target.value)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Datos laborales */}
       <Card>
         <CardHeader className="pb-4">
-          <CardTitle className="text-base">Datos laborales</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            <BriefcaseBusiness className="h-4 w-4" />
+            Datos laborales
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="employmentType">Situación de revista</Label>
+              <Select
+                value={form.employmentType || "none"}
+                onValueChange={(v) => set("employmentType", v === "none" ? "" : v)}
+              >
+                <SelectTrigger id="employmentType">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin especificar</SelectItem>
+                  <SelectItem value="planta_permanente">Planta Permanente</SelectItem>
+                  <SelectItem value="planta_temporaria">Planta Temporaria</SelectItem>
+                  <SelectItem value="jubilado">Jubilado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="hireDate">Fecha de ingreso</Label>
+              <Input
+                id="hireDate"
+                type="date"
+                value={form.hireDate}
+                onChange={(e) => set("hireDate", e.target.value)}
+              />
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                {form.hireDate ? `Antigüedad: ${calculateSeniority(form.hireDate)}` : "Se calcula automáticamente al cargar la fecha."}
+              </p>
+            </div>
+
             {/* Área */}
             <div className="space-y-1.5">
               <Label htmlFor="area">Área Municipal</Label>
@@ -237,6 +446,46 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
               <p className="text-xs text-[hsl(var(--muted-foreground))]">
                 Escribí libremente o elegí una existente.
               </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="sector">Sector</Label>
+              <Input
+                id="sector"
+                placeholder="Ej: Compras, Mantenimiento"
+                value={form.sector}
+                onChange={(e) => set("sector", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="position">Cargo</Label>
+              <Input
+                id="position"
+                placeholder="Ej: Administrativo, Operario"
+                value={form.position}
+                onChange={(e) => set("position", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="workShift">Turno</Label>
+              <Input
+                id="workShift"
+                placeholder="Ej: Mañana, Tarde, Rotativo"
+                value={form.workShift}
+                onChange={(e) => set("workShift", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="affiliationDate">Afiliado desde</Label>
+              <Input
+                id="affiliationDate"
+                type="date"
+                value={form.affiliationDate}
+                onChange={(e) => set("affiliationDate", e.target.value)}
+              />
             </div>
 
             {/* Salario bruto */}
@@ -284,6 +533,81 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base flex items-center gap-2">
+            <PhoneCall className="h-4 w-4" />
+            Contacto de emergencia
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="emergencyContactName">Nombre</Label>
+              <Input
+                id="emergencyContactName"
+                value={form.emergencyContactName}
+                onChange={(e) => set("emergencyContactName", e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="emergencyContactRelation">Vínculo</Label>
+              <Input
+                id="emergencyContactRelation"
+                placeholder="Ej: Cónyuge, Hijo/a"
+                value={form.emergencyContactRelation}
+                onChange={(e) => set("emergencyContactRelation", e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="emergencyContactPhone">Teléfono</Label>
+              <Input
+                id="emergencyContactPhone"
+                value={form.emergencyContactPhone}
+                onChange={(e) => set("emergencyContactPhone", e.target.value)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Documentación y notas internas
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="documentationStatus">Estado de documentación</Label>
+            <Select
+              value={form.documentationStatus}
+              onValueChange={(v) => set("documentationStatus", v)}
+            >
+              <SelectTrigger id="documentationStatus">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pendiente</SelectItem>
+                <SelectItem value="complete">Completa</SelectItem>
+                <SelectItem value="missing">Faltante</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="privateNotes">Observaciones internas</Label>
+            <Textarea
+              id="privateNotes"
+              rows={4}
+              value={form.privateNotes}
+              onChange={(e) => set("privateNotes", e.target.value)}
+              placeholder="Notas internas de administración..."
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Acciones */}
       <div className="flex items-center justify-end gap-3">
         <Button
@@ -310,4 +634,24 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
       </div>
     </form>
   );
+}
+
+function calculateSeniority(hireDate: string) {
+  const start = new Date(`${hireDate}T12:00:00`);
+  if (Number.isNaN(start.getTime())) return "sin dato";
+
+  const now = new Date();
+  let years = now.getFullYear() - start.getFullYear();
+  let months = now.getMonth() - start.getMonth();
+
+  if (now.getDate() < start.getDate()) months -= 1;
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+
+  if (years <= 0 && months <= 0) return "menos de 1 mes";
+  if (years <= 0) return `${months} mes${months !== 1 ? "es" : ""}`;
+  if (months <= 0) return `${years} año${years !== 1 ? "s" : ""}`;
+  return `${years} año${years !== 1 ? "s" : ""} y ${months} mes${months !== 1 ? "es" : ""}`;
 }

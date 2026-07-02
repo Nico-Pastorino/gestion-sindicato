@@ -99,13 +99,22 @@ export function isOverdue(dueDateStr: string): boolean {
 // ─── Utilidades para el cron de pagos automáticos ────────────────────────────
 
 /**
- * Dado el día de proceso, devuelve el último día del mes anterior.
- * Las cuotas con due_date <= este valor se consideran vencidas y pagables.
+ * Regla de cobro automático municipal:
+ * - El día 5 se pagan a mes vencido las cuotas con vencimiento hasta el último
+ *   día del mes anterior.
+ * - Los beneficios otorgados hasta el día 19 inclusive generan cuota en ese mes.
+ * - Los otorgados desde el día 20 generan primera cuota al mes siguiente.
  *
- * Ejemplo: processDate = 01/06/2026 → cutoffDate = 31/05/2026
+ * Ejemplo: proceso 05/07/2026 → paga cuotas con due_date <= 30/06/2026.
  */
-export function getCutoffDateForAutoPayment(processDate: Date = new Date()): string {
+export function getCutoffDateForAutoPayment(processDate: Date = new Date()): string | null {
+  if (processDate.getDate() < 5) return null;
   return format(endOfMonth(subMonths(processDate, 1)), "yyyy-MM-dd");
+}
+
+export function getPaidDateForAutoPayment(processDate: Date = new Date()): string | null {
+  if (processDate.getDate() < 5) return null;
+  return format(setDate(processDate, 5), "yyyy-MM-dd");
 }
 
 /**

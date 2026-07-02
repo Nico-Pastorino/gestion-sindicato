@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
+import { PrivacyProvider } from "@/contexts/privacy-context";
 import { cn } from "@/lib/utils/cn";
 
 export default function DashboardLayout({
@@ -13,6 +14,7 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
+    <PrivacyProvider>
     <div className="flex h-screen overflow-hidden">
       {/* Sidebar Desktop */}
       <div className="hidden lg:flex lg:flex-col lg:w-[260px] lg:shrink-0">
@@ -45,5 +47,6 @@ export default function DashboardLayout({
         </main>
       </div>
     </div>
+    </PrivacyProvider>
   );
 }

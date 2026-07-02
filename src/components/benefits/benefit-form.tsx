@@ -75,6 +75,7 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
     totalAmount: 0,
     installmentsCount: 1,
     installmentAmount: 0,
+    commerceRetentionRate: 0,
     observations: "",
   });
 
@@ -101,6 +102,10 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
   const totalRepayment = calculateTotalRepayment(form.installmentAmount, form.installmentsCount);
   const interestAmount = calculateInterest(form.totalAmount, totalRepayment);
   const interestRate = calculateInterestRate(form.totalAmount, interestAmount);
+  const commerceRetentionAmount = form.type === "supermercado"
+    ? Math.round(form.totalAmount * (form.commerceRetentionRate / 100) * 100) / 100
+    : 0;
+  const unionProfit = Math.round((interestAmount + commerceRetentionAmount) * 100) / 100;
   // ─── Búsqueda de afiliado ─────────────────────────────────────────────────
   const searchAffiliate = useCallback(async (q: string) => {
     if (q.length < 2) { setSearchResults([]); return; }
@@ -133,7 +138,6 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
   useEffect(() => {
     clearTimeout(projectionTimer.current);
     if (!affiliate || form.installmentAmount <= 0 || !firstDueDate) {
-      setProjection(null);
       return;
     }
 
@@ -156,7 +160,7 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
     }, 600);
 
     return () => clearTimeout(projectionTimer.current);
-  }, [affiliate?.id, form.installmentAmount, form.installmentsCount, firstDueDate]);
+  }, [affiliate, affiliate?.id, form.installmentAmount, form.installmentsCount, firstDueDate]);
 
   // ─── Actualización del form ───────────────────────────────────────────────
   function set(field: string, value: string | number) {
@@ -170,6 +174,9 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
       }
       return next;
     });
+    if (["date", "installmentAmount", "installmentsCount"].includes(field)) {
+      setProjection(null);
+    }
     setErrors((p) => ({ ...p, [field]: "" }));
   }
 
@@ -183,6 +190,10 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
     if (form.installmentsCount < 1) e.installmentsCount = "Mínimo 1 cuota";
     if (form.type === "supermercado" && form.installmentsCount !== 1)
       e.installmentsCount = "Comercio: solo 1 cuota";
+    if (form.type === "supermercado" && !form.commerce.trim())
+      e.commerce = "Ingresá el comercio adherido";
+    if (form.type === "supermercado" && form.commerceRetentionRate <= 0)
+      e.commerceRetentionRate = "La retención debe ser mayor a 0%";
 
     // Bloquear si la proyección todavía se está cargando o si tiene conflictos
     if (isProjecting) {
@@ -224,6 +235,7 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
             totalAmount: form.totalAmount,
             installmentsCount: form.installmentsCount,
             installmentAmount: form.installmentAmount,
+            commerceRetentionRate: form.commerceRetentionRate,
             observations: form.observations.trim() || null,
           }),
         });
@@ -390,7 +402,9 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
                 placeholder="Ej: La Anónima, Coto, etc."
                 value={form.commerce}
                 onChange={(e) => set("commerce", e.target.value)}
+                className={errors.commerce ? "border-red-400" : ""}
               />
+              {errors.commerce && <p className="text-xs text-red-600">{errors.commerce}</p>}
             </div>
 
             {/* Fecha de otorgamiento + info sobre corte */}
@@ -476,11 +490,39 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
                 Incluye interés si corresponde.
               </p>
             </div>
+
+            {form.type === "supermercado" && (
+              <div className="space-y-1.5">
+                <Label>
+                  Retención del comercio <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={form.commerceRetentionRate || ""}
+                    onChange={(e) => set("commerceRetentionRate", Number(e.target.value))}
+                    placeholder="Ej: 8"
+                    className={`pr-8 ${errors.commerceRetentionRate ? "border-red-400" : ""}`}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[hsl(var(--muted-foreground))]">%</span>
+                </div>
+                {errors.commerceRetentionRate ? (
+                  <p className="text-xs text-red-600">{errors.commerceRetentionRate}</p>
+                ) : (
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                    Se calcula sobre el monto otorgado y corresponde a una única cuota.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Resumen de interés */}
           {form.totalAmount > 0 && form.installmentAmount > 0 && (
-            <div className="rounded-lg bg-[hsl(var(--muted))]/40 p-3 grid grid-cols-2 gap-2 sm:grid-cols-4 text-sm">
+            <div className="rounded-lg bg-[hsl(var(--muted))]/40 p-3 grid grid-cols-2 gap-2 sm:grid-cols-5 text-sm">
               <div>
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">Total a devolver</p>
                 <p className="font-semibold">{formatCurrencyARS(totalRepayment)}</p>
@@ -504,6 +546,24 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
                     ? formatCurrencyARS(form.totalAmount / form.installmentsCount)
                     : "—"}
                 </p>
+              </div>
+              <div>
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">Ganancia sindicato</p>
+                <p className="font-bold text-emerald-700">{formatCurrencyARS(unionProfit)}</p>
+              </div>
+            </div>
+          )}
+
+          {form.type === "supermercado" && form.totalAmount > 0 && form.commerceRetentionRate > 0 && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-emerald-900">Retención calculada automáticamente</p>
+                  <p className="text-xs text-emerald-700">
+                    {formatCurrencyARS(form.totalAmount)} x {form.commerceRetentionRate}% = ganancia por comercio
+                  </p>
+                </div>
+                <p className="text-lg font-bold text-emerald-800">{formatCurrencyARS(commerceRetentionAmount)}</p>
               </div>
             </div>
           )}

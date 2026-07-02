@@ -3,8 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, RefreshCw, AlertCircle } from "lucide-react";
+import { ChevronLeft, RefreshCw, AlertCircle, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { InstallmentStatusBadge, BenefitStatusBadge, BenefitTypeBadge } from "@/components/ui/badge";
 import { formatCurrencyARS } from "@/lib/utils/currency";
 import { formatDate } from "@/lib/utils/date";
@@ -48,6 +49,14 @@ export function MetricDetailClient({ metric, title, subtitle, initialMonth, init
 
   function handleMonth(m: number) { setMonth(m); loadPeriod(m, year); }
   function handleYear(y: number) { setYear(y); loadPeriod(month, y); }
+  function setQuick(mOffset: number) {
+    const d = new Date(now.getFullYear(), now.getMonth() - mOffset, 1);
+    const m = d.getMonth() + 1;
+    const y = d.getFullYear();
+    setMonth(m);
+    setYear(y);
+    loadPeriod(m, y);
+  }
 
   return (
     <div className="space-y-6">
@@ -58,7 +67,7 @@ export function MetricDetailClient({ metric, title, subtitle, initialMonth, init
           className="inline-flex items-center gap-1.5 text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] mb-3 transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
-          Volver al Dashboard
+          Volver al Inicio
         </Link>
         <h1 className="text-2xl font-bold">{title}</h1>
         <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">{subtitle}</p>
@@ -67,23 +76,48 @@ export function MetricDetailClient({ metric, title, subtitle, initialMonth, init
       {/* ── Selector período ── */}
       <Card>
         <CardContent className="pt-4 pb-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <select
-              value={month}
-              onChange={(e) => handleMonth(Number(e.target.value))}
-              className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2.5 py-1.5 text-sm font-medium"
-            >
-              {MONTHS.map((name, i) => <option key={i + 1} value={i + 1}>{name}</option>)}
-            </select>
-            <select
-              value={year}
-              onChange={(e) => handleYear(Number(e.target.value))}
-              className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2.5 py-1.5 text-sm font-medium"
-            >
-              {years.map((y) => <option key={y} value={y}>{y}</option>)}
-            </select>
-            {isLoading && <RefreshCw className="h-4 w-4 animate-spin text-[hsl(var(--muted-foreground))]" />}
-            <span className="text-sm font-semibold">{label}</span>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <select
+                  value={month}
+                  onChange={(e) => handleMonth(Number(e.target.value))}
+                  className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2.5 py-1.5 text-sm font-medium"
+                >
+                  {MONTHS.map((name, i) => <option key={i + 1} value={i + 1}>{name}</option>)}
+                </select>
+                <select
+                  value={year}
+                  onChange={(e) => handleYear(Number(e.target.value))}
+                  className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2.5 py-1.5 text-sm font-medium"
+                >
+                  {years.map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <span className="hidden h-6 w-px bg-[hsl(var(--border))] sm:block" />
+                {[
+                  { label: "Este mes", offset: 0 },
+                  { label: "Mes anterior", offset: 1 },
+                  { label: "Hace 3 meses", offset: 3 },
+                  { label: "Hace 6 meses", offset: 6 },
+                ].map(({ label: quickLabel, offset }) => (
+                  <button
+                    key={offset}
+                    onClick={() => setQuick(offset)}
+                    className="rounded-full border px-2.5 py-0.5 text-xs hover:bg-[hsl(var(--accent))] transition-colors"
+                  >
+                    {quickLabel}
+                  </button>
+                ))}
+                {isLoading && <RefreshCw className="h-4 w-4 animate-spin text-[hsl(var(--muted-foreground))]" />}
+              </div>
+              <span className="block text-sm font-semibold">{label}</span>
+            </div>
+            <Button variant="outline" asChild>
+              <Link href={`/exportar?month=${month}&year=${year}`}>
+                <FileText className="h-4 w-4" />
+                Reporte PDF
+              </Link>
+            </Button>
           </div>
         </CardContent>
       </Card>

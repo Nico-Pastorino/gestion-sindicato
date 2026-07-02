@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   getDashboardSummary,
-  getPendingInstallmentsForPeriod,
   getMonthlyHistory,
   getDashboardGlobals,
+  getDashboardAnalytics,
 } from "@/lib/services/dashboard.service";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -26,20 +26,20 @@ export async function GET(req: NextRequest) {
     const label = format(monthDate, "MMMM yyyy", { locale: es });
     const labelCapitalized = label.charAt(0).toUpperCase() + label.slice(1);
 
-    const [summary, pendingInstallments, monthlyHistory, globals] = await Promise.all([
+    const [summary, monthlyHistory, globals, analytics] = await Promise.all([
       getDashboardSummary(month, year),
-      getPendingInstallmentsForPeriod(month, year, 50),
       getMonthlyHistory(6),
       getDashboardGlobals(),
+      getDashboardAnalytics(month, year),
     ]);
 
     return NextResponse.json({
       ok: true,
       period: { month, year, label: labelCapitalized },
       summary,
-      pendingInstallments,
       monthlyHistory,
       globals,
+      analytics,
     });
   } catch (error) {
     console.error("[GET /api/dashboard]", error);
