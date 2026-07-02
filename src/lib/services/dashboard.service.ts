@@ -271,18 +271,24 @@ export async function getAnalysisInsights(): Promise<AnalysisInsights> {
     `),
     db.execute(sql`
       SELECT
-        acs.affiliate_id AS "affiliateId",
-        acs.full_name    AS "fullName",
-        acs.dni,
-        COALESCE(acs.total_committed::numeric, 0) AS total_committed,
+        a.id             AS "affiliateId",
+        a.full_name      AS "fullName",
+        a.dni,
+        COALESCE(tc.total_committed, 0) AS total_committed,
         COALESCE(ab.active_benefits, 0)::int AS active_benefits
-      FROM affiliate_credit_summary acs
+      FROM affiliates a
+      JOIN (
+        SELECT affiliate_id, SUM(amount::numeric) AS total_committed
+        FROM installments
+        WHERE status IN ('pending', 'overdue')
+        GROUP BY affiliate_id
+      ) tc ON tc.affiliate_id = a.id
       LEFT JOIN (
         SELECT affiliate_id, COUNT(*)::int AS active_benefits
         FROM benefits WHERE status = 'active' GROUP BY affiliate_id
-      ) ab ON ab.affiliate_id = acs.affiliate_id
-      WHERE COALESCE(acs.total_committed::numeric, 0) > 0
-      ORDER BY acs.total_committed::numeric DESC
+      ) ab ON ab.affiliate_id = a.id
+      WHERE tc.total_committed > 0
+      ORDER BY tc.total_committed DESC
       LIMIT 5
     `),
   ]);

@@ -212,7 +212,7 @@ export async function searchAffiliates(input: AffiliateSearchInput) {
         acs.credit_limit_30   AS "creditLimit30",
         acs.active_discounts  AS "activeDiscounts",
         acs.available_amount  AS "availableAmount",
-        acs.total_committed   AS "totalCommitted",
+        COALESCE(tc.total_committed, 0)::text AS "totalCommitted",
         COALESCE(ab.active_benefits, 0)::int AS "activeBenefitsCount"
       FROM affiliate_credit_summary acs
       JOIN affiliates a ON a.id = acs.affiliate_id
@@ -222,6 +222,15 @@ export async function searchAffiliates(input: AffiliateSearchInput) {
         WHERE status = 'active'
         GROUP BY affiliate_id
       ) ab ON ab.affiliate_id = acs.affiliate_id
+      LEFT JOIN (
+        -- Total comprometido = suma de cuotas pendientes/vencidas.
+        -- Se calcula acá (no desde la vista) para no depender de que la
+        -- vista affiliate_credit_summary tenga la columna total_committed.
+        SELECT affiliate_id, SUM(amount::numeric) AS total_committed
+        FROM installments
+        WHERE status IN ('pending', 'overdue')
+        GROUP BY affiliate_id
+      ) tc ON tc.affiliate_id = acs.affiliate_id
       WHERE ${baseFilter}
       ORDER BY a.full_name ASC
       LIMIT ${limit} OFFSET ${offset}
