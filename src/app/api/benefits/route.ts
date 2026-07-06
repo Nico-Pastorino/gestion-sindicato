@@ -2,17 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { createBenefit, listBenefits, CreditLimitError } from "@/lib/services/benefits.service";
 import { createBenefitSchema, benefitFiltersSchema } from "@/lib/validations/benefit.schema";
 import { parseCurrencyInput } from "@/lib/utils/currency";
+import { requireSession, requireRole, authErrorResponse } from "@/lib/auth/guards";
 import { ZodError } from "zod";
 
 const isDev = process.env.NODE_ENV === "development";
 
 export async function GET(req: NextRequest) {
   try {
+    await requireSession();
     const params = Object.fromEntries(req.nextUrl.searchParams);
     const input = benefitFiltersSchema.parse(params);
     const result = await listBenefits(input);
     return NextResponse.json(result);
   } catch (error) {
+    const authRes = authErrorResponse(error);
+    if (authRes) return authRes;
     if (error instanceof ZodError) {
       return NextResponse.json(
         { ok: false, message: "Parámetros inválidos", details: error.issues },
@@ -29,6 +33,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   let body: unknown = null;
+
+  const sessionOrError = await requireRole("admin", "operator").catch((e) => e);
+  const authRes = authErrorResponse(sessionOrError);
+  if (authRes) return authRes;
+  const session = sessionOrError as Awaited<ReturnType<typeof requireRole>>;
 
   try {
     body = await req.json();
@@ -100,7 +109,7 @@ export async function POST(req: NextRequest) {
     }
 
     const input = createBenefitSchema.parse(normalized);
-    const result = await createBenefit(input);
+    const result = await createBenefit(input, session.user.id);
 
     if (isDev) {
       console.log("[POST /api/benefits] creado:", result.benefit.id);

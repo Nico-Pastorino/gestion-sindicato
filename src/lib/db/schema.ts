@@ -59,6 +59,8 @@ export const affiliates = pgTable(
     position: text("position"),
     workShift: text("work_shift"),
     affiliationDate: date("affiliation_date"),
+    grossSalary: numeric("gross_salary", { precision: 14, scale: 2 }),
+    phone: text("phone"),
     alternatePhone: text("alternate_phone"),
     email: text("email"),
     cuil: text("cuil"),
@@ -75,10 +77,10 @@ export const affiliates = pgTable(
     emergencyContactPhone: text("emergency_contact_phone"),
     documentationStatus: text("documentation_status", {
       enum: ["complete", "pending", "missing"],
-    }).notNull().default("pending"),
+    })
+      .notNull()
+      .default("pending"),
     privateNotes: text("private_notes"),
-    grossSalary: numeric("gross_salary", { precision: 14, scale: 2 }),
-    phone: text("phone"),
     status: text("status", { enum: ["active", "inactive"] })
       .notNull()
       .default("active"),
@@ -163,6 +165,9 @@ export const installments = pgTable(
     // Campos para pago automático (cron)
     autoPaid: boolean("auto_paid").notNull().default(false),
     paidBy: text("paid_by", { enum: ["system", "admin", "operator"] }),
+    // Conciliación: motivo cuando se revierte un cobro (municipalidad no retuvo)
+    uncollectedReason: text("uncollected_reason"),
+    uncollectedAt: timestamp("uncollected_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [

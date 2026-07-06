@@ -3,9 +3,11 @@ import { getMunicipalityPreview, createExportLog, updateExportLogStatus } from "
 import { buildMunicipalityExcel } from "@/lib/utils/export-municipality";
 import { sendMunicipalityExportEmail } from "@/lib/services/email.service";
 import { getMunicipalityPeriod } from "@/lib/utils/date";
+import { requireRole, authErrorResponse } from "@/lib/auth/guards";
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireRole("admin", "operator");
     const body = await req.json().catch(() => ({})) as { month?: number; year?: number };
     const now = new Date();
     const month = body.month ?? (now.getMonth() + 1);
@@ -39,6 +41,7 @@ export async function POST(req: NextRequest) {
       emailTo: process.env.EXPORT_EMAIL_TO,
       emailCc: process.env.EXPORT_EMAIL_CC,
       status: "generated",
+      createdBy: session.user.id,
     });
 
     // Enviar por email
@@ -74,6 +77,8 @@ export async function POST(req: NextRequest) {
       emailSentTo: process.env.EXPORT_EMAIL_TO,
     });
   } catch (error) {
+    const authRes = authErrorResponse(error);
+    if (authRes) return authRes;
     console.error("[POST /api/exports/municipality/send]", error);
     return NextResponse.json({ ok: false, message: "Error inesperado al enviar." }, { status: 500 });
   }

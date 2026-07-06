@@ -1,3 +1,6 @@
+// Etiquetas y tipos de auditoría, sin dependencias de servidor (DB), para poder
+// usarlos tanto en componentes server como client.
+
 export interface AuditLogRow {
   id: string;
   userId: string | null;
@@ -45,6 +48,7 @@ export function auditEntityLabel(entityType: string): string {
   return AUDIT_ENTITY_LABELS[entityType] ?? entityType;
 }
 
+/** Detalle corto y legible derivado de old/new value, cuando aporta contexto. */
 export function auditDetail(log: Pick<AuditLogRow, "action" | "newValue" | "oldValue">): string | null {
   const nv = log.newValue ?? {};
   const ov = log.oldValue ?? {};
@@ -53,7 +57,7 @@ export function auditDetail(log: Pick<AuditLogRow, "action" | "newValue" | "oldV
     return nv.uncollectedReason;
   }
   if (log.action === "benefit_updated" && ov.status && nv.status) {
-    return `${ov.status} -> ${nv.status}`;
+    return `${ov.status} → ${nv.status}`;
   }
   if (log.action === "salary_updated") {
     return "Se modificó el salario bruto";

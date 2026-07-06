@@ -6,6 +6,8 @@ import type {
   CreateAffiliateInput,
   UpdateAffiliateInput,
   AffiliateSearchInput,
+  AffiliateExploreFilters,
+  AffiliateExploreInput,
 } from "@/lib/validations/affiliate.schema";
 import type { AffiliateCreditSummary } from "@/types";
 
@@ -64,16 +66,18 @@ export async function createAffiliate(
       legajo: input.legajo?.trim() || null,
       area: input.area ?? null,
       sex: input.sex ?? null,
-      employmentType: input.employmentType ?? null,
-      hireDate: input.hireDate ?? null,
       sector: input.sector ?? null,
       position: input.position ?? null,
+      employmentType: input.employmentType ?? null,
       workShift: input.workShift ?? null,
-      affiliationDate: input.affiliationDate ?? null,
+      hireDate: input.hireDate || null,
+      affiliationDate: input.affiliationDate || null,
+      grossSalary: input.grossSalary != null ? String(input.grossSalary) : null,
+      phone: input.phone ?? null,
       alternatePhone: input.alternatePhone ?? null,
-      email: input.email ?? null,
+      email: input.email || null,
       cuil: input.cuil ?? null,
-      birthDate: input.birthDate ?? null,
+      birthDate: input.birthDate || null,
       maritalStatus: input.maritalStatus ?? null,
       streetAddress: input.streetAddress ?? null,
       addressNumber: input.addressNumber ?? null,
@@ -86,8 +90,6 @@ export async function createAffiliate(
       emergencyContactPhone: input.emergencyContactPhone ?? null,
       documentationStatus: input.documentationStatus ?? "pending",
       privateNotes: input.privateNotes ?? null,
-      grossSalary: input.grossSalary != null ? String(input.grossSalary) : null,
-      phone: input.phone ?? null,
       status: input.status ?? "active",
     })
     .returning();
@@ -129,16 +131,20 @@ export async function updateAffiliate(
       ...(data.legajo !== undefined && { legajo: data.legajo?.trim() || null }),
       ...(data.area !== undefined && { area: data.area }),
       ...(data.sex !== undefined && { sex: data.sex }),
-      ...(data.employmentType !== undefined && { employmentType: data.employmentType }),
-      ...(data.hireDate !== undefined && { hireDate: data.hireDate }),
       ...(data.sector !== undefined && { sector: data.sector }),
       ...(data.position !== undefined && { position: data.position }),
+      ...(data.employmentType !== undefined && { employmentType: data.employmentType }),
       ...(data.workShift !== undefined && { workShift: data.workShift }),
-      ...(data.affiliationDate !== undefined && { affiliationDate: data.affiliationDate }),
+      ...(data.hireDate !== undefined && { hireDate: data.hireDate || null }),
+      ...(data.affiliationDate !== undefined && { affiliationDate: data.affiliationDate || null }),
+      ...(data.grossSalary !== undefined && {
+        grossSalary: data.grossSalary != null ? String(data.grossSalary) : null,
+      }),
+      ...(data.phone !== undefined && { phone: data.phone }),
       ...(data.alternatePhone !== undefined && { alternatePhone: data.alternatePhone }),
-      ...(data.email !== undefined && { email: data.email }),
+      ...(data.email !== undefined && { email: data.email || null }),
       ...(data.cuil !== undefined && { cuil: data.cuil }),
-      ...(data.birthDate !== undefined && { birthDate: data.birthDate }),
+      ...(data.birthDate !== undefined && { birthDate: data.birthDate || null }),
       ...(data.maritalStatus !== undefined && { maritalStatus: data.maritalStatus }),
       ...(data.streetAddress !== undefined && { streetAddress: data.streetAddress }),
       ...(data.addressNumber !== undefined && { addressNumber: data.addressNumber }),
@@ -151,10 +157,6 @@ export async function updateAffiliate(
       ...(data.emergencyContactPhone !== undefined && { emergencyContactPhone: data.emergencyContactPhone }),
       ...(data.documentationStatus !== undefined && { documentationStatus: data.documentationStatus }),
       ...(data.privateNotes !== undefined && { privateNotes: data.privateNotes }),
-      ...(data.grossSalary !== undefined && {
-        grossSalary: data.grossSalary != null ? String(data.grossSalary) : null,
-      }),
-      ...(data.phone !== undefined && { phone: data.phone }),
       ...(data.status !== undefined && { status: data.status }),
     })
     .where(eq(affiliates.id, id))
@@ -207,6 +209,10 @@ export async function searchAffiliates(input: AffiliateSearchInput) {
         a.sex,
         a.employment_type AS "employmentType",
         a.hire_date AS "hireDate",
+        a.sector,
+        a.phone,
+        a.email,
+        a.documentation_status AS "documentationStatus",
         acs.status,
         acs.gross_salary      AS "grossSalary",
         acs.credit_limit_30   AS "creditLimit30",
@@ -290,6 +296,150 @@ export async function getAffiliateByLegajo(legajo: string) {
   return db.query.affiliates.findFirst({
     where: eq(affiliates.legajo, legajo),
   });
+}
+
+// ─── Explorador / exportador de afiliados ────────────────────────────────────
+
+export interface AffiliateExportRow {
+  id: string;
+  fullName: string;
+  dni: string;
+  cuil: string | null;
+  legajo: string | null;
+  area: string | null;
+  sector: string | null;
+  position: string | null;
+  employmentType: string | null;
+  workShift: string | null;
+  phone: string | null;
+  alternatePhone: string | null;
+  email: string | null;
+  streetAddress: string | null;
+  addressNumber: string | null;
+  neighborhood: string | null;
+  city: string | null;
+  province: string | null;
+  postalCode: string | null;
+  grossSalary: string | null;
+  status: string;
+  documentationStatus: string;
+  hireDate: string | null;
+  affiliationDate: string | null;
+}
+
+/** WHERE compartido por el listado y la exportación (parametrizado). */
+function buildExploreWhere(f: AffiliateExploreFilters) {
+  let where = sql`1=1`;
+  if (f.search) {
+    where = sql`${where} AND (
+      a.full_name ILIKE ${"%" + f.search + "%"}
+      OR a.dni ILIKE ${"%" + f.search + "%"}
+      OR a.legajo ILIKE ${"%" + f.search + "%"}
+      OR a.cuil ILIKE ${"%" + f.search + "%"}
+    )`;
+  }
+  if (f.area) where = sql`${where} AND a.area ILIKE ${"%" + f.area + "%"}`;
+  if (f.sector) where = sql`${where} AND a.sector ILIKE ${"%" + f.sector + "%"}`;
+  if (f.city) where = sql`${where} AND a.city ILIKE ${"%" + f.city + "%"}`;
+  if (f.neighborhood) where = sql`${where} AND a.neighborhood ILIKE ${"%" + f.neighborhood + "%"}`;
+  if (f.province) where = sql`${where} AND a.province ILIKE ${"%" + f.province + "%"}`;
+  if (f.employmentType) where = sql`${where} AND a.employment_type = ${f.employmentType}`;
+  if (f.status) where = sql`${where} AND a.status = ${f.status}`;
+  if (f.documentationStatus) where = sql`${where} AND a.documentation_status = ${f.documentationStatus}`;
+  if (f.hasSalary === "yes") where = sql`${where} AND a.gross_salary IS NOT NULL AND a.gross_salary > 0`;
+  if (f.hasSalary === "no") where = sql`${where} AND (a.gross_salary IS NULL OR a.gross_salary = 0)`;
+  return where;
+}
+
+const EXPORT_SELECT = sql`
+  a.id,
+  a.full_name           AS "fullName",
+  a.dni,
+  a.cuil,
+  a.legajo,
+  a.area,
+  a.sector,
+  a.position,
+  a.employment_type     AS "employmentType",
+  a.work_shift          AS "workShift",
+  a.phone,
+  a.alternate_phone     AS "alternatePhone",
+  a.email,
+  a.street_address      AS "streetAddress",
+  a.address_number      AS "addressNumber",
+  a.neighborhood,
+  a.city,
+  a.province,
+  a.postal_code         AS "postalCode",
+  a.gross_salary        AS "grossSalary",
+  a.status,
+  a.documentation_status AS "documentationStatus",
+  a.hire_date           AS "hireDate",
+  a.affiliation_date    AS "affiliationDate"
+`;
+
+/** Listado paginado para la tabla del explorador. */
+export async function exploreAffiliates(input: AffiliateExploreInput) {
+  const { page, limit, ...filters } = input;
+  const offset = (page - 1) * limit;
+  const where = buildExploreWhere(filters);
+
+  const [rows, countResult] = await Promise.all([
+    db.execute(sql`
+      SELECT ${EXPORT_SELECT}
+      FROM affiliates a
+      WHERE ${where}
+      ORDER BY a.full_name ASC
+      LIMIT ${limit} OFFSET ${offset}
+    `),
+    db.execute(sql`SELECT COUNT(*)::int AS count FROM affiliates a WHERE ${where}`),
+  ]);
+
+  const total = (countResult.rows[0] as { count: number })?.count ?? 0;
+  return {
+    data: rows.rows as unknown as AffiliateExportRow[],
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
+/** Todos los afiliados que matchean los filtros (para exportar). Cap defensivo. */
+export async function getAffiliatesForExport(
+  filters: AffiliateExploreFilters
+): Promise<AffiliateExportRow[]> {
+  const where = buildExploreWhere(filters);
+  const rows = await db.execute(sql`
+    SELECT ${EXPORT_SELECT}
+    FROM affiliates a
+    WHERE ${where}
+    ORDER BY a.full_name ASC
+    LIMIT 10000
+  `);
+  return rows.rows as unknown as AffiliateExportRow[];
+}
+
+/** Valores distintos para poblar los selects de filtros. */
+export async function getAffiliateFilterOptions() {
+  const result = await db.execute(sql`
+    SELECT 'area' AS field, area AS value FROM affiliates WHERE area IS NOT NULL AND area <> ''
+    UNION
+    SELECT 'sector' AS field, sector AS value FROM affiliates WHERE sector IS NOT NULL AND sector <> ''
+    UNION
+    SELECT 'city' AS field, city AS value FROM affiliates WHERE city IS NOT NULL AND city <> ''
+    UNION
+    SELECT 'province' AS field, province AS value FROM affiliates WHERE province IS NOT NULL AND province <> ''
+    ORDER BY value ASC
+  `);
+
+  const rows = result.rows as { field: string; value: string }[];
+  return {
+    areas: rows.filter((r) => r.field === "area").map((r) => r.value),
+    sectors: rows.filter((r) => r.field === "sector").map((r) => r.value),
+    cities: rows.filter((r) => r.field === "city").map((r) => r.value),
+    provinces: rows.filter((r) => r.field === "province").map((r) => r.value),
+  };
 }
 
 // ─── Obtener lista de áreas únicas ────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import { format, addMonths, subMonths, parseISO, isValid, endOfMonth, startOfMonth, setDate } from "date-fns";
 import { es } from "date-fns/locale";
 
-// ─── Regla de corte día 20 ────────────────────────────────────────────────────
+// ─── Regla de corte día 19 ────────────────────────────────────────────────────
 //
 // Los afiliados cobran el ÚLTIMO DÍA del mes.
 // La municipalidad retiene el descuento en ese mismo pago.
@@ -12,6 +12,9 @@ import { es } from "date-fns/locale";
 //   - Si el beneficio se otorga desde el día 20 en adelante:
 //     → la primera cuota se cobra el último día del MES SIGUIENTE.
 //   - Las cuotas siguientes son siempre el último día de cada mes subsiguiente.
+//
+// Coincide con el período de liquidación municipal (20 del mes anterior → 19
+// del mes actual): lo otorgado desde el día 20 entra en la liquidación siguiente.
 //
 // Ejemplos:
 //   10/05/2026 → 31/05, 30/06, 31/07
@@ -26,10 +29,10 @@ import { es } from "date-fns/locale";
 export function getFirstInstallmentDueDate(grantDate: Date): Date {
   const day = grantDate.getDate();
   if (day <= 19) {
-    // Día 1–19: la primera cuota cae en el mismo mes
+    // Día 1–19: la primera cuota cae el último día del mismo mes
     return endOfMonth(grantDate);
   } else {
-    // Día 20 en adelante: la primera cuota pasa al mes siguiente
+    // Día 20 en adelante: la primera cuota pasa al último día del mes siguiente
     return endOfMonth(addMonths(grantDate, 1));
   }
 }

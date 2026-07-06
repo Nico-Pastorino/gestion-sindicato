@@ -142,12 +142,12 @@ export function AnalysisClient({
         />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <ClickCard href="/cobranza?status=overdue" icon={<AlertTriangle className="h-5 w-5 text-red-600" />} iconBg="bg-red-50"
+          <ClickCard href="/cobranzas?status=overdue" icon={<AlertTriangle className="h-5 w-5 text-red-600" />} iconBg="bg-red-50"
             label="En mora (vencido)" value={formatCurrencyARS(globals.totalOverdue)}
             sub={`${globals.overdueInstallmentsCount} cuotas · ${globals.affectedOverdueAffiliates} afiliados`} alert={globals.overdueInstallmentsCount > 0} />
           <ClickCard href={`/analisis/total-a-cobrar?${p}`} icon={<WalletCards className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50"
             label="Total a cobrar" value={formatCurrencyARS(globals.totalToCollect)} sub={`${formatCurrencyARS(globals.totalCollected)} ya cobrado`} />
-          <GaugeCard label="Cumplimiento de cobro" percent={globals.collectionComplianceRate} sub="Cuotas cobradas sobre el total" href="/cobranza" />
+          <GaugeCard label="Cumplimiento de cobro" percent={globals.collectionComplianceRate} sub="Cuotas cobradas sobre el total" href="/cobranzas" />
           <ClickCard href={`/analisis/capital-entregado?${p}`} icon={<DollarSign className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50"
             label="Total financiado (histórico)" value={formatCurrencyARS(globals.totalCapitalDelivered)} sub={`${globals.activeBenefits} beneficios activos`} />
         </div>

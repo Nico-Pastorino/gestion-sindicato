@@ -36,14 +36,14 @@ export default async function HomePage() {
     actions.push({
       tone: "alert",
       title: `${snapshot.overdueCount} cuota${snapshot.overdueCount !== 1 ? "s" : ""} vencida${snapshot.overdueCount !== 1 ? "s" : ""} sin cobrar · revisá la cobranza`,
-      href: "/cobranza?status=overdue",
+      href: "/cobranzas?status=overdue",
     });
   }
   if (snapshot.dueThisMonthCount > 0) {
     actions.push({
       tone: "warn",
       title: `${snapshot.dueThisMonthCount} cuota${snapshot.dueThisMonthCount !== 1 ? "s" : ""} por cobrar este mes`,
-      href: "/cobranza?status=pending",
+      href: "/cobranzas?status=pending",
     });
   }
   if (snapshot.activeWithoutSalary > 0) {
@@ -124,7 +124,7 @@ export default async function HomePage() {
             sub={`${snapshot.affiliatesWithActiveBenefit} afiliado${snapshot.affiliatesWithActiveBenefit !== 1 ? "s" : ""} con beneficio`}
           />
           <KpiCard
-            href="/cobranza"
+            href="/cobranzas"
             icon={<Clock className="h-5 w-5 text-amber-600" />}
             iconBg="bg-amber-50"
             label="A cobrar este mes"
@@ -132,7 +132,7 @@ export default async function HomePage() {
             sub={`${snapshot.dueThisMonthCount} cuota${snapshot.dueThisMonthCount !== 1 ? "s" : ""} pendiente${snapshot.dueThisMonthCount !== 1 ? "s" : ""}`}
           />
           <KpiCard
-            href="/cobranza?status=paid"
+            href="/cobranzas?status=paid"
             icon={<WalletCards className="h-5 w-5 text-green-600" />}
             iconBg="bg-green-50"
             label="Ya cobrado este mes"
@@ -148,7 +148,7 @@ export default async function HomePage() {
             sub="Por beneficios otorgados este mes"
           />
           <KpiCard
-            href="/cobranza?status=overdue"
+            href="/cobranzas?status=overdue"
             icon={<AlertTriangle className="h-5 w-5 text-red-600" />}
             iconBg="bg-red-50"
             label="En mora (vencido)"
@@ -170,10 +170,10 @@ export default async function HomePage() {
           <ModuleCard href="/afiliados" icon={<Users className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" label="Afiliados" detail="Fichero del padrón" />
           <ModuleCard href="/beneficios" icon={<Gift className="h-5 w-5 text-purple-600" />} iconBg="bg-purple-50" label="Beneficios" detail="Carga, cupo y cuotas" />
           <ModuleCard
-            href="/cobranza"
+            href="/cobranzas"
             icon={<WalletCards className="h-5 w-5 text-emerald-700" />}
             iconBg="bg-emerald-50"
-            label="Cobranza"
+            label="Cobranzas"
             detail={snapshot.overdueCount > 0 ? `${snapshot.overdueCount} vencida${snapshot.overdueCount !== 1 ? "s" : ""}` : "Al día"}
             alert={snapshot.overdueCount > 0}
           />

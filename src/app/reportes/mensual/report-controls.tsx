@@ -35,6 +35,7 @@ export function ReportControls({ month, year }: { month: number; year: number })
           ))}
         </select>
         <select value={year} onChange={(e) => go(month, Number(e.target.value))} className={selectClass} aria-label="Año">
+
           {years.map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
         <Button onClick={() => window.print()}>

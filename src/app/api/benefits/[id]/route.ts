@@ -4,6 +4,7 @@ import {
   cancelBenefit,
 } from "@/lib/services/benefits.service";
 import { cancelBenefitSchema } from "@/lib/validations/benefit.schema";
+import { requireSession, requireRole, authErrorResponse } from "@/lib/auth/guards";
 import { ZodError } from "zod";
 
 export async function GET(
@@ -11,6 +12,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireSession();
     const { id } = await params;
     const benefit = await getBenefitById(id);
 
@@ -23,6 +25,8 @@ export async function GET(
 
     return NextResponse.json({ data: benefit });
   } catch (error) {
+    const authRes = authErrorResponse(error);
+    if (authRes) return authRes;
     console.error("[GET /api/benefits/[id]]", error);
     return NextResponse.json(
       { error: { code: "INTERNAL_ERROR", message: "Error interno" } },
@@ -36,12 +40,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await requireRole("admin", "operator");
     const { id } = await params;
     const body = await req.json().catch(() => ({}));
     const input = cancelBenefitSchema.parse({ ...body, id });
-    await cancelBenefit(input);
+    await cancelBenefit(input, session.user.id);
     return NextResponse.json({ data: { success: true } });
   } catch (error) {
+    const authRes = authErrorResponse(error);
+    if (authRes) return authRes;
     if (error instanceof ZodError) {
       return NextResponse.json(
         { error: { code: "VALIDATION_ERROR", message: "Datos inválidos" } },

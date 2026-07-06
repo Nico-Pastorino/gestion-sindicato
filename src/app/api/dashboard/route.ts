@@ -5,11 +5,13 @@ import {
   getDashboardGlobals,
   getDashboardAnalytics,
 } from "@/lib/services/dashboard.service";
+import { requireSession, authErrorResponse } from "@/lib/auth/guards";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
 export async function GET(req: NextRequest) {
   try {
+    await requireSession();
     const params = req.nextUrl.searchParams;
     const now = new Date();
     const month = parseInt(params.get("month") ?? String(now.getMonth() + 1), 10);
@@ -42,6 +44,8 @@ export async function GET(req: NextRequest) {
       analytics,
     });
   } catch (error) {
+    const authRes = authErrorResponse(error);
+    if (authRes) return authRes;
     console.error("[GET /api/dashboard]", error);
     return NextResponse.json({ ok: false, message: "Error al cargar el dashboard." }, { status: 500 });
   }

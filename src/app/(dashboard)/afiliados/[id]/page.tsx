@@ -13,11 +13,12 @@ import {
   BriefcaseBusiness,
   UserRound,
   ArrowRight,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AffiliateStatusBadge } from "@/components/ui/badge";
-import { SensitiveValue } from "@/components/privacy/sensitive-value";
+import { SensitiveText, SensitiveValue } from "@/components/privacy/sensitive-value";
 import { formatCurrency } from "@/lib/utils/credit";
 import { formatDate } from "@/lib/utils/date";
 import {
@@ -28,6 +29,8 @@ import {
   isUuid,
 } from "@/lib/utils/labels";
 import { getAffiliateById } from "@/lib/services/affiliates.service";
+import { getAffiliateActivity } from "@/lib/services/audit.service";
+import { ActivityTimeline } from "@/components/audit/activity-timeline";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +48,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function AffiliateDetailPage({ params }: PageProps) {
   const { id } = await params;
   if (!isUuid(id)) notFound();
-  const data = await getAffiliateById(id);
+
+  const [data, activity] = await Promise.all([
+    getAffiliateById(id),
+    getAffiliateActivity(id),
+  ]);
 
   if (!data) notFound();
 
@@ -70,7 +77,7 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
           <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-[hsl(var(--muted-foreground))]">
             <span className="flex items-center gap-1">
               <CreditCard className="h-3.5 w-3.5" />
-              DNI {data.dni}
+              <SensitiveText value={data.dni} type="dni" prefix="DNI " />
             </span>
             {data.legajo && (
               <span className="flex items-center gap-1">
@@ -87,7 +94,13 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
             {data.phone && (
               <span className="flex items-center gap-1">
                 <Phone className="h-3.5 w-3.5" />
-                {data.phone}
+                <SensitiveText value={data.phone} type="phone" />
+              </span>
+            )}
+            {data.email && (
+              <span className="flex items-center gap-1">
+                <Mail className="h-3.5 w-3.5" />
+                <SensitiveText value={data.email} type="email" />
               </span>
             )}
           </div>
@@ -224,6 +237,19 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Actividad */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <UserRound className="h-4 w-4" />
+            Actividad
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ActivityTimeline items={activity} />
+        </CardContent>
+      </Card>
     </div>
   );
 }

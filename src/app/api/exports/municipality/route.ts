@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getMunicipalityPreview, createExportLog } from "@/lib/services/exports.service";
 import { buildMunicipalityExcel } from "@/lib/utils/export-municipality";
 import { getMunicipalityPeriod } from "@/lib/utils/date";
+import { requireRole, authErrorResponse } from "@/lib/auth/guards";
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await requireRole("admin", "operator");
     const params = req.nextUrl.searchParams;
     const now = new Date();
     const month = parseInt(params.get("month") ?? String(now.getMonth() + 1), 10);
@@ -32,6 +34,7 @@ export async function GET(req: NextRequest) {
       totalInstallment: result.totalInstallment,
       totalInterest: result.totalInterest,
       status: "generated",
+      createdBy: session.user.id,
     }).catch(console.error);
 
     return new NextResponse(new Uint8Array(result.buffer), {
@@ -46,6 +49,8 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
+    const authRes = authErrorResponse(error);
+    if (authRes) return authRes;
     console.error("[GET /api/exports/municipality]", error);
     return NextResponse.json({ ok: false, message: "Error al generar el Excel." }, { status: 500 });
   }

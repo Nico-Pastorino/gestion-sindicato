@@ -26,36 +26,58 @@ export async function logAudit(params: LogAuditParams): Promise<void> {
   });
 }
 
-export async function getAuditLogs(params: {
+// ─── Listado paginado y filtrado (vista de auditoría) ────────────────────────
+
+export async function listAuditLogs(params: {
+  action?: string;
   entityType?: string;
   entityId?: string;
-  action?: AuditAction;
+  page?: number;
   limit?: number;
-  offset?: number;
 }) {
-  const { entityType, entityId, action, limit = 50, offset = 0 } = params;
+  const page = params.page ?? 1;
+  const limit = params.limit ?? 50;
+  const offset = (page - 1) * limit;
 
   const conditions = [];
-
-  if (entityType) {
-    conditions.push(eq(auditLogs.entityType, entityType));
-  }
-  if (entityId) {
-    conditions.push(eq(auditLogs.entityId, entityId));
-  }
-  if (action) {
-    conditions.push(eq(auditLogs.action, action));
-  }
+  if (params.action) conditions.push(eq(auditLogs.action, params.action));
+  if (params.entityType) conditions.push(eq(auditLogs.entityType, params.entityType));
+  if (params.entityId) conditions.push(eq(auditLogs.entityId, params.entityId));
   const where = conditions.length ? and(...conditions) : undefined;
 
-  return db.query.auditLogs.findMany({
-    where,
-    with: { user: { columns: { id: true, name: true, email: true } } },
-    orderBy: (t, { desc }) => [desc(t.createdAt)],
-    limit,
-    offset,
-  });
+  const [rows, countRows] = await Promise.all([
+    db.query.auditLogs.findMany({
+      where,
+      with: { user: { columns: { id: true, name: true, email: true } } },
+      orderBy: (t, { desc }) => [desc(t.createdAt)],
+      limit,
+      offset,
+    }),
+    db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(auditLogs)
+      .where(where),
+  ]);
+
+  const total = countRows[0]?.count ?? 0;
+
+  const data: AuditLogRow[] = rows.map((r) => ({
+    id: r.id,
+    userId: r.userId,
+    userName: r.user?.name ?? null,
+    action: r.action,
+    entityType: r.entityType,
+    entityId: r.entityId,
+    oldValue: r.oldValue as Record<string, unknown> | null,
+    newValue: r.newValue as Record<string, unknown> | null,
+    createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+  }));
+
+  return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
 }
+
+// ─── Actividad de un afiliado (timeline del legajo) ──────────────────────────
+// Reúne los eventos del propio afiliado + de sus beneficios + de sus cuotas.
 
 export async function getAffiliateActivity(
   affiliateId: string,

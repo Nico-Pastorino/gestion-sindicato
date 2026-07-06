@@ -9,7 +9,18 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, BriefcaseBusiness, FileText, Loader2, MapPin, PhoneCall, Save, User } from "lucide-react";
+import {
+  AlertTriangle,
+  BriefcaseBusiness,
+  FileCheck2,
+  HeartHandshake,
+  Loader2,
+  Mail,
+  MapPinned,
+  Save,
+  Shield,
+  User,
+} from "lucide-react";
 import { calculateCreditLimit, formatCurrency } from "@/lib/utils/credit";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import type { Affiliate } from "@/types";
@@ -36,12 +47,14 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
     legajo: affiliate?.legajo ?? "",
     area: affiliate?.area ?? "",
     sex: affiliate?.sex ?? "",
-    employmentType: affiliate?.employmentType ?? "",
-    hireDate: affiliate?.hireDate ?? "",
     sector: affiliate?.sector ?? "",
     position: affiliate?.position ?? "",
+    employmentType: affiliate?.employmentType ?? "",
     workShift: affiliate?.workShift ?? "",
+    hireDate: affiliate?.hireDate ?? "",
     affiliationDate: affiliate?.affiliationDate ?? "",
+    grossSalary: affiliate?.grossSalary ? Number(affiliate.grossSalary) : 0,
+    phone: affiliate?.phone ?? "",
     alternatePhone: affiliate?.alternatePhone ?? "",
     email: affiliate?.email ?? "",
     cuil: affiliate?.cuil ?? "",
@@ -58,8 +71,6 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
     emergencyContactPhone: affiliate?.emergencyContactPhone ?? "",
     documentationStatus: affiliate?.documentationStatus ?? "pending",
     privateNotes: affiliate?.privateNotes ?? "",
-    grossSalary: affiliate?.grossSalary ? Number(affiliate.grossSalary) : 0,
-    phone: affiliate?.phone ?? "",
     status: affiliate?.status ?? "active",
   });
 
@@ -94,12 +105,14 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
           legajo: form.legajo.trim() || null,
           area: form.area.trim() || null,
           sex: form.sex || null,
-          employmentType: form.employmentType || null,
-          hireDate: form.hireDate || null,
           sector: form.sector.trim() || null,
           position: form.position.trim() || null,
+          employmentType: form.employmentType || null,
           workShift: form.workShift.trim() || null,
+          hireDate: form.hireDate || null,
           affiliationDate: form.affiliationDate || null,
+          grossSalary: form.grossSalary > 0 ? form.grossSalary : null,
+          phone: form.phone.trim() || null,
           alternatePhone: form.alternatePhone.trim() || null,
           email: form.email.trim() || null,
           cuil: form.cuil.trim() || null,
@@ -116,8 +129,6 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
           emergencyContactPhone: form.emergencyContactPhone.trim() || null,
           documentationStatus: form.documentationStatus,
           privateNotes: form.privateNotes.trim() || null,
-          grossSalary: form.grossSalary > 0 ? form.grossSalary : null,
-          phone: form.phone.trim() || null,
           status: form.status,
         };
 
@@ -214,6 +225,26 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
               )}
             </div>
 
+            <div className="space-y-1.5">
+              <Label htmlFor="cuil">CUIL/CUIT</Label>
+              <Input
+                id="cuil"
+                placeholder="Ej: 20-28456789-3"
+                value={form.cuil}
+                onChange={(e) => set("cuil", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="birthDate">Fecha de nacimiento</Label>
+              <Input
+                id="birthDate"
+                type="date"
+                value={form.birthDate}
+                onChange={(e) => set("birthDate", e.target.value)}
+              />
+            </div>
+
             {/* Legajo */}
             <div className="space-y-1.5">
               <Label htmlFor="legajo">Legajo</Label>
@@ -240,41 +271,26 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
               <Label htmlFor="alternatePhone">Teléfono alternativo</Label>
               <Input
                 id="alternatePhone"
-                placeholder="Ej: 2616123456"
+                placeholder="Ej: 2615123456"
                 value={form.alternatePhone}
                 onChange={(e) => set("alternatePhone", e.target.value)}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="nombre@correo.com"
-                value={form.email}
-                onChange={(e) => set("email", e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="cuil">CUIL</Label>
-              <Input
-                id="cuil"
-                placeholder="Ej: 20-28456789-3"
-                value={form.cuil}
-                onChange={(e) => set("cuil", e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="birthDate">Fecha de nacimiento</Label>
-              <Input
-                id="birthDate"
-                type="date"
-                value={form.birthDate}
-                onChange={(e) => set("birthDate", e.target.value)}
-              />
+              <Label htmlFor="email">Correo electrónico</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="correo@ejemplo.com"
+                  value={form.email}
+                  onChange={(e) => set("email", e.target.value)}
+                  className={`pl-9 ${errors.email ? "border-red-400" : ""}`}
+                />
+              </div>
+              {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
             </div>
 
             <div className="space-y-1.5">
@@ -323,62 +339,39 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
         </CardContent>
       </Card>
 
+      {/* Domicilio */}
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="text-base flex items-center gap-2">
-            <MapPin className="h-4 w-4" />
+            <MapPinned className="h-4 w-4" />
             Domicilio
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-6">
+            <div className="space-y-1.5 sm:col-span-4">
               <Label htmlFor="streetAddress">Calle</Label>
-              <Input
-                id="streetAddress"
-                value={form.streetAddress}
-                onChange={(e) => set("streetAddress", e.target.value)}
-              />
+              <Input id="streetAddress" value={form.streetAddress} onChange={(e) => set("streetAddress", e.target.value)} />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="addressNumber">Número</Label>
-              <Input
-                id="addressNumber"
-                value={form.addressNumber}
-                onChange={(e) => set("addressNumber", e.target.value)}
-              />
+              <Input id="addressNumber" value={form.addressNumber} onChange={(e) => set("addressNumber", e.target.value)} />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 sm:col-span-3">
               <Label htmlFor="neighborhood">Barrio</Label>
-              <Input
-                id="neighborhood"
-                value={form.neighborhood}
-                onChange={(e) => set("neighborhood", e.target.value)}
-              />
+              <Input id="neighborhood" value={form.neighborhood} onChange={(e) => set("neighborhood", e.target.value)} />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 sm:col-span-3">
               <Label htmlFor="city">Localidad</Label>
-              <Input
-                id="city"
-                value={form.city}
-                onChange={(e) => set("city", e.target.value)}
-              />
+              <Input id="city" value={form.city} onChange={(e) => set("city", e.target.value)} />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 sm:col-span-3">
               <Label htmlFor="province">Provincia</Label>
-              <Input
-                id="province"
-                value={form.province}
-                onChange={(e) => set("province", e.target.value)}
-              />
+              <Input id="province" value={form.province} onChange={(e) => set("province", e.target.value)} />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 sm:col-span-3">
               <Label htmlFor="postalCode">Código postal</Label>
-              <Input
-                id="postalCode"
-                value={form.postalCode}
-                onChange={(e) => set("postalCode", e.target.value)}
-              />
+              <Input id="postalCode" value={form.postalCode} onChange={(e) => set("postalCode", e.target.value)} />
             </div>
           </div>
         </CardContent>
@@ -389,7 +382,7 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
         <CardHeader className="pb-4">
           <CardTitle className="text-base flex items-center gap-2">
             <BriefcaseBusiness className="h-4 w-4" />
-            Datos laborales
+            Datos laborales y afiliación
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -518,7 +511,7 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
               <div className="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-blue-700 font-medium">
-                    Tope mensual 30%
+                    Máximo a descontar por mes (30%)
                   </span>
                   <span className="text-blue-800 font-bold text-base">
                     {formatCurrency(creditLimit)}
@@ -533,76 +526,75 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
         </CardContent>
       </Card>
 
+      {/* Control interno */}
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="text-base flex items-center gap-2">
-            <PhoneCall className="h-4 w-4" />
-            Contacto de emergencia
+            <Shield className="h-4 w-4" />
+            Control interno
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="emergencyContactName">Nombre</Label>
+              <Label htmlFor="documentationStatus" className="flex items-center gap-1.5">
+                <FileCheck2 className="h-3.5 w-3.5" />
+                Documentación
+              </Label>
+              <Select value={form.documentationStatus} onValueChange={(v) => set("documentationStatus", v)}>
+                <SelectTrigger id="documentationStatus">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="complete">Completa</SelectItem>
+                  <SelectItem value="pending">Pendiente</SelectItem>
+                  <SelectItem value="missing">Faltante</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="emergencyContactName" className="flex items-center gap-1.5">
+                <HeartHandshake className="h-3.5 w-3.5" />
+                Contacto de emergencia
+              </Label>
               <Input
                 id="emergencyContactName"
+                placeholder="Nombre y apellido"
                 value={form.emergencyContactName}
                 onChange={(e) => set("emergencyContactName", e.target.value)}
               />
             </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="emergencyContactRelation">Vínculo</Label>
               <Input
                 id="emergencyContactRelation"
-                placeholder="Ej: Cónyuge, Hijo/a"
+                placeholder="Ej: Cónyuge, hijo/a"
                 value={form.emergencyContactRelation}
                 onChange={(e) => set("emergencyContactRelation", e.target.value)}
               />
             </div>
+
             <div className="space-y-1.5">
-              <Label htmlFor="emergencyContactPhone">Teléfono</Label>
+              <Label htmlFor="emergencyContactPhone">Teléfono de emergencia</Label>
               <Input
                 id="emergencyContactPhone"
+                placeholder="Ej: 2616123456"
                 value={form.emergencyContactPhone}
                 onChange={(e) => set("emergencyContactPhone", e.target.value)}
               />
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Documentación y notas internas
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="documentationStatus">Estado de documentación</Label>
-            <Select
-              value={form.documentationStatus}
-              onValueChange={(v) => set("documentationStatus", v)}
-            >
-              <SelectTrigger id="documentationStatus">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pending">Pendiente</SelectItem>
-                <SelectItem value="complete">Completa</SelectItem>
-                <SelectItem value="missing">Faltante</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="privateNotes">Observaciones internas</Label>
+            <Label htmlFor="privateNotes">Observaciones privadas</Label>
             <Textarea
               id="privateNotes"
-              rows={4}
+              placeholder="Notas internas, documentación pendiente, situaciones especiales..."
               value={form.privateNotes}
               onChange={(e) => set("privateNotes", e.target.value)}
-              placeholder="Notas internas de administración..."
+              rows={4}
             />
           </div>
         </CardContent>

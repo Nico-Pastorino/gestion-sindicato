@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,6 +19,18 @@ export const metadata: Metadata = {
     template: "%s | Sistema Sindical",
   },
   description: "Sistema de gestión de beneficios y afiliados sindicales",
+  applicationName: "Sistema Sindical",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Sistema Sindical",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#16181f",
 };
 
 export default function RootLayout({
@@ -30,7 +43,10 @@ export default function RootLayout({
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full`}
     >
-      <body className="h-full bg-[hsl(220,20%,97%)]">{children}</body>
+      <body className="h-full bg-[hsl(220,20%,97%)]">
+        {children}
+        <Toaster richColors position="top-right" />
+      </body>
     </html>
   );
 }

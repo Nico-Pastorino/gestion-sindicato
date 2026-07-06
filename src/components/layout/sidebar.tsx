@@ -7,10 +7,10 @@ import {
   Users,
   Gift,
   FileDown,
-  WalletCards,
   BarChart3,
   Building2,
   ChevronRight,
+  HandCoins,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
@@ -25,7 +25,7 @@ const navItems: NavItem[] = [
   { href: "/dashboard",       label: "Inicio",         icon: LayoutDashboard },
   { href: "/afiliados",       label: "Afiliados",      icon: Users },
   { href: "/beneficios",      label: "Beneficios",     icon: Gift },
-  { href: "/cobranza",        label: "Cobranza",       icon: WalletCards },
+  { href: "/cobranzas",       label: "Cobranzas",      icon: HandCoins },
   { href: "/analisis",        label: "Análisis",       icon: BarChart3 },
   { href: "/exportar",        label: "Exportar",       icon: FileDown },
 ];
