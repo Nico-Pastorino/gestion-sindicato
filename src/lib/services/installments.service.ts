@@ -117,8 +117,9 @@ export async function unpayInstallment(id: string, userId?: string) {
 }
 
 // ─── Conciliación masiva: revertir varias cuotas con un motivo ───────────────
-// Para el flujo del día 5: la municipalidad informa qué NO retuvo y se revierten
-// en lote esas cuotas auto-cobradas, dejando asentado el motivo.
+// Para el flujo del cobro automático de fin de mes: la municipalidad informa
+// qué NO retuvo y se revierten en lote esas cuotas auto-cobradas, dejando
+// asentado el motivo.
 
 export async function bulkUnpayInstallments(input: BulkUnpayInput, userId?: string) {
   const reasonLabel = UNCOLLECTED_REASONS[input.reason];
@@ -300,6 +301,11 @@ export async function listAutoPaidInstallments(params: {
 }
 
 // ─── Marcar cuotas como pagadas automáticamente ──────────────────────────────
+// El cron llama esta función todos los días entre el 25 y el 31 (ver
+// vercel.json); acá se decide si HOY corresponde actuar. Es idempotente: si
+// se llama más de una vez el mismo día (o el cron reintenta), la segunda
+// corrida no encuentra cuotas pending/overdue para actualizar (ya quedaron en
+// 'paid') y no duplica pagos ni auditoría.
 
 export async function autoPayDueInstallments(processDate = new Date()) {
   const cutoffDate = getCutoffDateForAutoPayment(processDate);
@@ -311,7 +317,7 @@ export async function autoPayDueInstallments(processDate = new Date()) {
       cutoffDate,
       updatedCount: 0,
       benefitIds: [],
-      skippedReason: "auto_payment_runs_from_day_5",
+      skippedReason: "not_last_business_day_of_month",
     };
   }
 
@@ -361,7 +367,7 @@ export async function autoPayDueInstallments(processDate = new Date()) {
           autoPaid: true,
           paidBy: "system",
           cutoffDate,
-          rule: "auto_payment_day_5_previous_month",
+          rule: "auto_payment_last_business_day_of_month",
         } as Record<string, unknown>,
       }))
     );

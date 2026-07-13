@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AffiliateStatusBadge } from "@/components/ui/badge";
 import { formatEmploymentType } from "@/lib/utils/labels";
+import { DeleteAffiliateButton } from "@/components/affiliates/delete-affiliate-button";
+import { AffiliateAvatar } from "@/components/affiliates/affiliate-avatar";
 import {
   ArrowDown,
   ArrowUp,
@@ -73,7 +75,6 @@ export function AffiliatesTable({ affiliates }: AffiliatesTableProps) {
         Legajo: a.legajo ?? "",
         Área: a.area ?? "",
         Situación: formatEmploymentType(a.employmentType),
-        "Beneficios activos": a.activeBenefitsCount ?? 0,
         Estado: a.status === "active" ? "Activo" : "Inactivo",
       }));
       const ws = XLSX.utils.json_to_sheet(data);
@@ -126,23 +127,20 @@ export function AffiliatesTable({ affiliates }: AffiliatesTableProps) {
                 className="rounded-lg border bg-[hsl(var(--card))] p-4 transition-colors hover:bg-[hsl(var(--accent))]/40"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold">{affiliate.fullName}</p>
-                    <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                      DNI {affiliate.dni}{affiliate.legajo ? ` · Legajo ${affiliate.legajo}` : ""}
-                    </p>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <AffiliateAvatar name={affiliate.fullName} photoUrl={affiliate.photoUrl} size="md" />
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">{affiliate.fullName}</p>
+                      <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                        DNI {affiliate.dni}{affiliate.legajo ? ` · Legajo ${affiliate.legajo}` : ""}
+                      </p>
+                    </div>
                   </div>
                   <AffiliateStatusBadge status={affiliate.status} />
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-xs text-[hsl(var(--muted-foreground))]">Situación</p>
-                    <p className="font-medium">{formatEmploymentType(affiliate.employmentType)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[hsl(var(--muted-foreground))]">Beneficios</p>
-                    <BenefitsIndicator count={affiliate.activeBenefitsCount ?? 0} />
-                  </div>
+                <div className="mt-3 text-sm">
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Situación</p>
+                  <p className="font-medium">{formatEmploymentType(affiliate.employmentType)}</p>
                 </div>
               </Link>
             ))}
@@ -158,7 +156,6 @@ export function AffiliatesTable({ affiliates }: AffiliatesTableProps) {
                   <SortableHead label="Legajo" col="legajo" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="hidden lg:table-cell" />
                   <SortableHead label="Área" col="area" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="hidden lg:table-cell" />
                   <TableHead className="hidden xl:table-cell">Situación</TableHead>
-                  <TableHead>Beneficios</TableHead>
                   <SortableHead label="Estado" col="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="hidden sm:table-cell" />
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
@@ -167,14 +164,17 @@ export function AffiliatesTable({ affiliates }: AffiliatesTableProps) {
                 {rows.map((affiliate) => (
                   <TableRow key={affiliate.affiliateId}>
                     <TableCell>
-                      <div>
-                        <Link
-                          href={`/afiliados/${affiliate.affiliateId}`}
-                          className="font-medium text-[hsl(var(--foreground))] transition-colors hover:text-[hsl(var(--primary))]"
-                        >
-                          {affiliate.fullName}
-                        </Link>
-                        <p className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))] md:hidden">DNI {affiliate.dni}</p>
+                      <div className="flex items-center gap-3">
+                        <AffiliateAvatar name={affiliate.fullName} photoUrl={affiliate.photoUrl} size="sm" />
+                        <div className="min-w-0">
+                          <Link
+                            href={`/afiliados/${affiliate.affiliateId}`}
+                            className="font-medium text-[hsl(var(--foreground))] transition-colors hover:text-[hsl(var(--primary))]"
+                          >
+                            {affiliate.fullName}
+                          </Link>
+                          <p className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))] md:hidden">DNI {affiliate.dni}</p>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="hidden text-sm md:table-cell">{affiliate.dni}</TableCell>
@@ -182,9 +182,6 @@ export function AffiliatesTable({ affiliates }: AffiliatesTableProps) {
                     <TableCell className="hidden text-sm text-[hsl(var(--muted-foreground))] lg:table-cell">{affiliate.area ?? "-"}</TableCell>
                     <TableCell className="hidden text-sm xl:table-cell">
                       {formatEmploymentType(affiliate.employmentType)}
-                    </TableCell>
-                    <TableCell>
-                      <BenefitsIndicator count={affiliate.activeBenefitsCount ?? 0} />
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
                       <AffiliateStatusBadge status={affiliate.status} />
@@ -203,6 +200,11 @@ export function AffiliatesTable({ affiliates }: AffiliatesTableProps) {
                             <span className="sr-only">Editar</span>
                           </Link>
                         </Button>
+                        <DeleteAffiliateButton
+                          affiliateId={affiliate.affiliateId}
+                          affiliateName={affiliate.fullName}
+                          iconOnly
+                        />
                       </div>
                     </TableCell>
                   </TableRow>
@@ -213,17 +215,6 @@ export function AffiliatesTable({ affiliates }: AffiliatesTableProps) {
         </>
       )}
     </div>
-  );
-}
-
-function BenefitsIndicator({ count }: { count: number }) {
-  if (count <= 0) {
-    return <span className="text-xs text-[hsl(var(--muted-foreground))]">Sin beneficios</span>;
-  }
-  return (
-    <span className="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
-      {count} activo{count !== 1 ? "s" : ""}
-    </span>
   );
 }
 

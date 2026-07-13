@@ -1,4 +1,4 @@
-import { format, addMonths, subMonths, parseISO, isValid, endOfMonth, startOfMonth, setDate } from "date-fns";
+import { format, addMonths, subMonths, subDays, parseISO, isValid, endOfMonth, setDate } from "date-fns";
 import { es } from "date-fns/locale";
 
 // ─── Regla de corte día 19 ────────────────────────────────────────────────────
@@ -102,22 +102,53 @@ export function isOverdue(dueDateStr: string): boolean {
 // ─── Utilidades para el cron de pagos automáticos ────────────────────────────
 
 /**
- * Regla de cobro automático municipal:
- * - El día 5 se pagan a mes vencido las cuotas con vencimiento hasta el último
- *   día del mes anterior.
- * - Los beneficios otorgados hasta el día 19 inclusive generan cuota en ese mes.
- * - Los otorgados desde el día 20 generan primera cuota al mes siguiente.
- *
- * Ejemplo: proceso 05/07/2026 → paga cuotas con due_date <= 30/06/2026.
+ * Último día hábil (lunes a viernes) del mes correspondiente a `date`.
+ * Si el último día calendario cae sábado o domingo, retrocede al viernes.
  */
-export function getCutoffDateForAutoPayment(processDate: Date = new Date()): string | null {
-  if (processDate.getDate() < 5) return null;
-  return format(endOfMonth(subMonths(processDate, 1)), "yyyy-MM-dd");
+function lastBusinessDayOfMonth(date: Date): Date {
+  let d = endOfMonth(date);
+  const dayOfWeek = d.getDay(); // 0 = domingo, 6 = sábado
+  if (dayOfWeek === 0) d = subDays(d, 2);
+  else if (dayOfWeek === 6) d = subDays(d, 1);
+  return d;
 }
 
+/**
+ * True si `date` es el último día hábil de su mes.
+ * Función pura: no depende de la hora actual ni de I/O.
+ */
+export function isLastBusinessDayOfMonth(date: Date): boolean {
+  const last = lastBusinessDayOfMonth(date);
+  return (
+    date.getFullYear() === last.getFullYear() &&
+    date.getMonth() === last.getMonth() &&
+    date.getDate() === last.getDate()
+  );
+}
+
+/**
+ * Regla de cobro automático (último día hábil del mes):
+ * - El cron corre todos los días entre el 25 y el 31 (por si el mes es más
+ *   corto o el último día hábil cae antes del 31), pero solo actúa si
+ *   `processDate` ES el último día hábil de su mes.
+ * - Ese día se pagan las cuotas con vencimiento hasta el último día
+ *   CALENDARIO de ese mismo mes (no del mes anterior).
+ *
+ * Ejemplos:
+ *   Último día hábil = 31/07/2026 (viernes) → cutoff = 31/07/2026.
+ *   Último día hábil = 30/01/2026 (viernes, el 31 cae sábado) → cutoff = 31/01/2026.
+ */
+export function getCutoffDateForAutoPayment(processDate: Date = new Date()): string | null {
+  if (!isLastBusinessDayOfMonth(processDate)) return null;
+  return format(endOfMonth(processDate), "yyyy-MM-dd");
+}
+
+/**
+ * Fecha de pago = el día que corre el proceso (el último día hábil del mes).
+ */
 export function getPaidDateForAutoPayment(processDate: Date = new Date()): string | null {
-  if (processDate.getDate() < 5) return null;
-  return format(setDate(processDate, 5), "yyyy-MM-dd");
+  if (!isLastBusinessDayOfMonth(processDate)) return null;
+  return format(processDate, "yyyy-MM-dd");
 }
 
 /**

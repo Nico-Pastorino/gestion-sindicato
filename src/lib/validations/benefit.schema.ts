@@ -12,6 +12,10 @@ const moneyField = (label: string) =>
 export const createBenefitSchema = z
   .object({
     affiliateId: z.string().uuid("ID de afiliado inválido"),
+    // Sueldo bruto: se carga/edita en este formulario (el módulo Afiliados ya
+    // no lo pide). Opcional en el schema porque el afiliado puede ya tenerlo
+    // guardado; createBenefit exige que exista uno u otro.
+    grossSalary: moneyField("El sueldo bruto").optional(),
     date: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Formato de fecha inválido (YYYY-MM-DD)"),

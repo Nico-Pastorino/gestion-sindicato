@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { benefits, installments, auditLogs } from "@/lib/db/schema";
 import { eq, and, gte, lte, inArray, sql } from "drizzle-orm";
 import { notifyBenefitCompleted } from "./whatsapp.service";
-import { getAffiliateCreditSummary } from "./affiliates.service";
+import { getAffiliateCreditSummary, updateAffiliate } from "./affiliates.service";
 import { generateInstallmentDueDates } from "@/lib/utils/date";
 import { roundMoney, formatCurrencyARS } from "@/lib/utils/currency";
 import type { CreateBenefitInput, CancelBenefitInput, BenefitFiltersInput, MonthlyConflict, CreditProjectionResult } from "@/lib/validations/benefit.schema";
@@ -95,15 +95,30 @@ export async function getMonthlyProjection(
 // ─── Crear beneficio con cuotas (transacción real) ────────────────────────────
 
 export async function createBenefit(input: CreateBenefitInput, userId?: string) {
-  // 1. Verificar que el afiliado existe y tiene salario
-  const creditSummary = await getAffiliateCreditSummary(input.affiliateId);
+  // 1. Verificar que el afiliado existe
+  let creditSummary = await getAffiliateCreditSummary(input.affiliateId);
   if (!creditSummary) {
     throw new Error("Afiliado no encontrado");
   }
 
+  // 1.b Sueldo bruto: se carga/edita desde este mismo formulario (Beneficios).
+  // Se guarda en el afiliado ANTES de leer el disponible y validar el 30%,
+  // porque validate_monthly_credit lee gross_salary directo de la tabla
+  // affiliates. Solo se escribe (y audita como salary_updated, mismo camino
+  // que updateAffiliate) si el valor realmente cambió — si no, cada beneficio
+  // generaría una entrada de auditoría aunque el sueldo ya estuviera cargado.
+  const storedSalary = Number(creditSummary.grossSalary ?? 0);
+  if (input.grossSalary != null && input.grossSalary !== storedSalary) {
+    await updateAffiliate({ id: input.affiliateId, grossSalary: input.grossSalary }, userId);
+    creditSummary = await getAffiliateCreditSummary(input.affiliateId);
+    if (!creditSummary) {
+      throw new Error("Afiliado no encontrado");
+    }
+  }
+
   const grossSalary = Number(creditSummary.grossSalary);
   if (!grossSalary || grossSalary <= 0) {
-    throw new Error("El afiliado no tiene salario bruto registrado. Actualizá el perfil antes de cargar un beneficio.");
+    throw new Error("El afiliado no tiene salario bruto registrado. Cargalo en este formulario antes de otorgar el beneficio.");
   }
 
   // 2. Calcular fechas de cuotas automáticamente (regla día 20)

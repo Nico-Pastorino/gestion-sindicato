@@ -264,9 +264,10 @@ export default async function CobranzasPage({ searchParams }: PageProps) {
       </div>
 
       <p className="text-xs text-[hsl(var(--muted-foreground))]">
-        El día 5 de cada mes el sistema marca como cobradas las cuotas vencidas el mes anterior
-        (retención municipal). Si la municipalidad no retuvo alguna, revertila desde el detalle del
-        beneficio con el botón &quot;No cobrado&quot; y va a volver a aparecer en esta lista.
+        El último día hábil de cada mes el sistema marca como cobradas las cuotas con vencimiento
+        hasta ese mismo mes (retención municipal). Si la municipalidad no retuvo alguna, revertila
+        desde el detalle del beneficio con el botón &quot;No cobrado&quot; y va a volver a aparecer
+        en esta lista.
       </p>
     </div>
   );

@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { formatDate } from "./date";
+import { formatEmploymentType } from "./labels";
 import type { AffiliateExportRow } from "@/lib/services/affiliates.service";
 
 export interface AffiliatesExportResult {
@@ -7,13 +8,6 @@ export interface AffiliatesExportResult {
   fileName: string;
   recordsCount: number;
 }
-
-const EMPLOYMENT_LABELS: Record<string, string> = {
-  planta: "Planta permanente",
-  contratado: "Contratado",
-  jubilado: "Jubilado",
-  otro: "Otro",
-};
 
 const STATUS_LABELS: Record<string, string> = {
   active: "Activo",
@@ -27,8 +21,8 @@ const DOC_LABELS: Record<string, string> = {
 };
 
 /**
- * Genera el Excel del listado de afiliados filtrado. El salario va como celda
- * numérica (no texto) para que se pueda sumar/ordenar en la planilla.
+ * Genera el Excel del listado de afiliados filtrado. El sueldo bruto no se
+ * incluye acá: se carga y se ve desde Beneficios.
  */
 export function buildAffiliatesExcel(
   rows: AffiliateExportRow[]
@@ -45,7 +39,7 @@ export function buildAffiliatesExcel(
     "Área": r.area ?? "",
     "Sector": r.sector ?? "",
     "Cargo": r.position ?? "",
-    "Vínculo": r.employmentType ? EMPLOYMENT_LABELS[r.employmentType] ?? r.employmentType : "",
+    "Vínculo": r.employmentType ? formatEmploymentType(r.employmentType) : "",
     "Turno": r.workShift ?? "",
     "Teléfono": r.phone ?? "",
     "Tel. alternativo": r.alternatePhone ?? "",
@@ -55,7 +49,6 @@ export function buildAffiliatesExcel(
     "Localidad": r.city ?? "",
     "Provincia": r.province ?? "",
     "CP": r.postalCode ?? "",
-    "Salario Bruto": r.grossSalary != null && r.grossSalary !== "" ? Number(r.grossSalary) : "",
     "Estado": STATUS_LABELS[r.status] ?? r.status,
     "Documentación": DOC_LABELS[r.documentationStatus] ?? r.documentationStatus,
     "Ingreso": r.hireDate ? formatDate(r.hireDate) : "",
@@ -88,25 +81,11 @@ export function buildAffiliatesExcel(
     { wch: 16 }, // Localidad
     { wch: 16 }, // Provincia
     { wch: 8 },  // CP
-    { wch: 16 }, // Salario Bruto
     { wch: 10 }, // Estado
     { wch: 14 }, // Documentación
     { wch: 14 }, // Ingreso
     { wch: 14 }, // Afiliado desde
   ];
-
-  // Formato de moneda argentina para la columna Salario Bruto (índice 18, columna S).
-  if (dataRows.length > 0) {
-    const salaryCol = 18;
-    for (let i = 0; i < dataRows.length; i++) {
-      const ref = XLSX.utils.encode_cell({ r: i + 1, c: salaryCol });
-      const cell = ws[ref];
-      if (cell && typeof cell.v === "number") {
-        cell.t = "n";
-        cell.z = '#,##0.00';
-      }
-    }
-  }
 
   ws["!freeze"] = { xSplit: 0, ySplit: 1 };
 

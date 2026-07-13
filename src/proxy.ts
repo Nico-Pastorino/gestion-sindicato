@@ -4,7 +4,11 @@ import { GATE_COOKIE, getExpectedToken } from "@/lib/auth/gate";
 // Rutas que NO requieren contraseña:
 // - /unlock y /api/unlock: la propia pantalla de ingreso
 // - /api/cron: protegidas por su propio CRON_SECRET (Bearer)
-const PUBLIC_PREFIXES = ["/unlock", "/api/unlock", "/api/cron"];
+// - /verificar: verificación pública de credenciales (QR del carnet);
+//   muestra solo foto, nombre y estado — el ID (UUID) no es adivinable
+// - /api/files: sirve fotos/documentos por UUID no adivinable (la página
+//   de verificación necesita la foto sin contraseña)
+const PUBLIC_PREFIXES = ["/unlock", "/api/unlock", "/api/cron", "/verificar", "/api/files"];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;

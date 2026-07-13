@@ -85,6 +85,15 @@ export const createAffiliateSchema = z.object({
   documentationStatus: z.enum(["complete", "pending", "missing"]).default("pending"),
   privateNotes: z.string().max(3000, "Las observaciones no pueden superar 3000 caracteres").trim().optional().nullable(),
   status: z.enum(["active", "inactive"]).default("active"),
+  inactiveReason: z
+    .enum(["renuncia", "jubilacion", "fallecimiento", "traslado", "otro"])
+    .optional()
+    .nullable(),
+  inactiveDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Formato de fecha inválido (YYYY-MM-DD)")
+    .optional()
+    .nullable(),
 });
 
 export const updateAffiliateSchema = createAffiliateSchema.partial().extend({

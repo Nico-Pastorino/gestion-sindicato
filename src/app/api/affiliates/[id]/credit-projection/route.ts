@@ -9,6 +9,9 @@ const querySchema = z.object({
   installmentAmount: z.coerce.number().positive("La cuota debe ser mayor a 0"),
   installmentsCount: z.coerce.number().int().min(1).max(3),
   firstDueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  // Sueldo bruto cargado/editado en el formulario de Beneficios (todavía no
+  // guardado). Si no se envía, se usa el que ya tiene el afiliado en la DB.
+  grossSalary: z.coerce.number().positive().optional(),
 });
 
 export async function GET(
@@ -41,7 +44,9 @@ export async function GET(
       );
     }
 
-    const grossSalary = Number(affiliate.grossSalary);
+    // Prioriza el sueldo cargado en el formulario (todavía no guardado) por
+    // sobre el que ya tiene el afiliado en la DB.
+    const grossSalary = parsed.data.grossSalary ?? Number(affiliate.grossSalary);
     if (!grossSalary || grossSalary <= 0) {
       return NextResponse.json(
         { ok: false, message: "El afiliado no tiene salario bruto registrado" },

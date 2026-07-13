@@ -65,12 +65,16 @@ export async function POST(req: NextRequest) {
     const commerceRetentionRateRaw = typeof raw.commerceRetentionRate === "string"
       ? Number(raw.commerceRetentionRate.replace(",", "."))
       : raw.commerceRetentionRate;
+    const grossSalaryRaw = typeof raw.grossSalary === "string"
+      ? parseCurrencyInput(raw.grossSalary)
+      : raw.grossSalary;
 
     const normalized: Record<string, unknown> = {
       ...raw,
       totalAmount: totalAmountRaw,
       installmentAmount: installmentAmountRaw,
       commerceRetentionRate: commerceRetentionRateRaw ?? 0,
+      ...(grossSalaryRaw != null && { grossSalary: grossSalaryRaw }),
     };
 
     if (isDev) {

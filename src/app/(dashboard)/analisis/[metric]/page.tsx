@@ -8,6 +8,7 @@ import {
   getFaltaCobrarDetail,
   getGananciaEstimadaDetail,
   getGananciaPendienteDetail,
+  type MetricScope,
 } from "@/lib/services/dashboard-detail.service";
 import { MetricDetailClient } from "./metric-detail-client";
 
@@ -25,13 +26,13 @@ const METRIC_TITLES: Record<ValidMetric, { title: string; subtitle: string }> = 
   "total-a-cobrar":     { title: "Total a cobrar",      subtitle: "Cuotas generadas por beneficios del período" },
   "cobrado":            { title: "Cobrado hasta ahora", subtitle: "Cuotas efectivamente cobradas" },
   "falta-cobrar":       { title: "Falta cobrar",        subtitle: "Cuotas pendientes y vencidas" },
-  "ganancia-estimada":  { title: "Interés total",       subtitle: "Intereses generados por beneficios del período" },
+  "ganancia-estimada":  { title: "Ganancia del sindicato", subtitle: "Intereses + retención a comercios de los beneficios del período" },
   "ganancia-pendiente": { title: "Interés por cobrar",  subtitle: "Intereses aún no cobrados" },
 };
 
 interface PageProps {
   params: Promise<{ metric: string }>;
-  searchParams: Promise<{ month?: string; year?: string }>;
+  searchParams: Promise<{ month?: string; year?: string; scope?: string }>;
 }
 
 export default async function MetricDetailPage({ params, searchParams }: PageProps) {
@@ -43,21 +44,25 @@ export default async function MetricDetailPage({ params, searchParams }: PagePro
   const now = new Date();
   const month = Math.min(12, Math.max(1, parseInt(sp.month ?? String(now.getMonth() + 1), 10) || now.getMonth() + 1));
   const year = parseInt(sp.year ?? String(now.getFullYear()), 10) || now.getFullYear();
+  const scope: MetricScope = sp.scope === "year" || sp.scope === "all" ? sp.scope : "month";
 
   const d = new Date(year, month - 1, 1);
   const lbl = format(d, "MMMM yyyy", { locale: es });
-  const periodLabel = lbl.charAt(0).toUpperCase() + lbl.slice(1);
+  const periodLabel =
+    scope === "all" ? "Todo el historial"
+    : scope === "year" ? `Año ${year} completo`
+    : lbl.charAt(0).toUpperCase() + lbl.slice(1);
   const { title, subtitle } = METRIC_TITLES[metric as ValidMetric];
 
   // Fetch data for this metric
   let data: unknown;
   switch (metric as ValidMetric) {
-    case "capital-entregado":  data = await getCapitalEntregadoDetail(month, year); break;
-    case "total-a-cobrar":     data = await getTotalACobrarDetail(month, year); break;
-    case "cobrado":            data = await getCobradoDetail(month, year); break;
-    case "falta-cobrar":       data = await getFaltaCobrarDetail(month, year); break;
-    case "ganancia-estimada":  data = await getGananciaEstimadaDetail(month, year); break;
-    case "ganancia-pendiente": data = await getGananciaPendienteDetail(month, year); break;
+    case "capital-entregado":  data = await getCapitalEntregadoDetail(month, year, scope); break;
+    case "total-a-cobrar":     data = await getTotalACobrarDetail(month, year, scope); break;
+    case "cobrado":            data = await getCobradoDetail(month, year, scope); break;
+    case "falta-cobrar":       data = await getFaltaCobrarDetail(month, year, scope); break;
+    case "ganancia-estimada":  data = await getGananciaEstimadaDetail(month, year, scope); break;
+    case "ganancia-pendiente": data = await getGananciaPendienteDetail(month, year, scope); break;
   }
 
   return (
@@ -67,6 +72,7 @@ export default async function MetricDetailPage({ params, searchParams }: PagePro
       subtitle={subtitle}
       initialMonth={month}
       initialYear={year}
+      initialScope={scope}
       periodLabel={periodLabel}
       initialData={data}
     />

@@ -34,6 +34,41 @@ export function formatAffiliateStatus(value?: string | null): string {
   return value === "active" ? "Activo" : "Inactivo";
 }
 
+export const INACTIVE_REASON_LABELS: Record<string, string> = {
+  renuncia: "Renuncia",
+  jubilacion: "Jubilación",
+  fallecimiento: "Fallecimiento",
+  traslado: "Traslado",
+  otro: "Otro",
+};
+
+export function formatInactiveReason(value?: string | null): string {
+  return value ? INACTIVE_REASON_LABELS[value] ?? value : "Sin dato";
+}
+
+export const FAMILY_RELATIONSHIP_LABELS: Record<string, string> = {
+  conyuge: "Cónyuge",
+  concubino_a: "Concubino/a",
+  hijo_a: "Hijo/a",
+  otro: "Otro",
+};
+
+export function formatFamilyRelationship(value?: string | null): string {
+  return value ? FAMILY_RELATIONSHIP_LABELS[value] ?? value : "Sin dato";
+}
+
+export const AFFILIATE_FILE_KIND_LABELS: Record<string, string> = {
+  foto: "Foto de perfil",
+  dni: "DNI escaneado",
+  ficha_firmada: "Ficha de afiliación firmada",
+  certificado: "Certificado",
+  otro: "Otro documento",
+};
+
+export function formatAffiliateFileKind(value?: string | null): string {
+  return value ? AFFILIATE_FILE_KIND_LABELS[value] ?? value : "Otro documento";
+}
+
 /**
  * Valida formato UUID antes de consultar la base.
  * Evita que una URL con un ID inválido (ej: /beneficios/xyz)

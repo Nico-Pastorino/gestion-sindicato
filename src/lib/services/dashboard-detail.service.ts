@@ -6,12 +6,25 @@ import { getBenefitTypeLabel } from "@/lib/utils/benefit-types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/** Alcance del detalle: mes elegido, año completo o todo el historial. */
+export type MetricScope = "month" | "year" | "all";
+
 function bounds(month: number, year: number) {
   const d = new Date(year, month - 1, 1);
   return {
     start: format(startOfMonth(d), "yyyy-MM-dd"),
     end: format(endOfMonth(d), "yyyy-MM-dd"),
   };
+}
+
+/** Filtro por fecha del beneficio según el alcance (siempre sobre el alias b). */
+function benefitDateFilter(month: number, year: number, scope: MetricScope) {
+  if (scope === "all") return sql`TRUE`;
+  if (scope === "year") {
+    return sql`b.date BETWEEN ${`${year}-01-01`} AND ${`${year}-12-31`}`;
+  }
+  const { start, end } = bounds(month, year);
+  return sql`b.date BETWEEN ${start} AND ${end}`;
 }
 
 function byTypeAgg(rows: Array<{ type: string; amount: number; count: number }>) {
@@ -48,8 +61,8 @@ export interface CapitalEntregadoData {
   rows: CapitalEntregadoRow[];
 }
 
-export async function getCapitalEntregadoDetail(month: number, year: number): Promise<CapitalEntregadoData> {
-  const { start, end } = bounds(month, year);
+export async function getCapitalEntregadoDetail(month: number, year: number, scope: MetricScope = "month"): Promise<CapitalEntregadoData> {
+  const dateFilter = benefitDateFilter(month, year, scope);
   const result = await db.execute(sql`
     SELECT
       b.id, b.affiliate_id, a.full_name, a.dni, a.legajo,
@@ -62,7 +75,7 @@ export async function getCapitalEntregadoDetail(month: number, year: number): Pr
     FROM benefits b
     JOIN affiliates a ON a.id = b.affiliate_id
     LEFT JOIN installments i ON i.benefit_id = b.id
-    WHERE b.date BETWEEN ${start} AND ${end} AND b.status != 'cancelled'
+    WHERE ${dateFilter} AND b.status != 'cancelled'
     GROUP BY b.id, a.full_name, a.dni, a.legajo
     ORDER BY b.date DESC, a.full_name ASC
   `);
@@ -103,8 +116,8 @@ export interface TotalACobrarData {
   rows: TotalACobrarRow[];
 }
 
-export async function getTotalACobrarDetail(month: number, year: number): Promise<TotalACobrarData> {
-  const { start, end } = bounds(month, year);
+export async function getTotalACobrarDetail(month: number, year: number, scope: MetricScope = "month"): Promise<TotalACobrarData> {
+  const dateFilter = benefitDateFilter(month, year, scope);
   const result = await db.execute(sql`
     SELECT
       i.id, i.benefit_id, a.id AS affiliate_id, a.full_name, a.dni,
@@ -115,7 +128,7 @@ export async function getTotalACobrarDetail(month: number, year: number): Promis
     FROM installments i
     JOIN benefits b ON b.id = i.benefit_id
     JOIN affiliates a ON a.id = i.affiliate_id
-    WHERE b.date BETWEEN ${start} AND ${end} AND b.status != 'cancelled'
+    WHERE ${dateFilter} AND b.status != 'cancelled'
     ORDER BY i.due_date ASC, a.full_name ASC
   `);
 
@@ -163,8 +176,8 @@ export interface CobradoData {
   rows: CobradoRow[];
 }
 
-export async function getCobradoDetail(month: number, year: number): Promise<CobradoData> {
-  const { start, end } = bounds(month, year);
+export async function getCobradoDetail(month: number, year: number, scope: MetricScope = "month"): Promise<CobradoData> {
+  const dateFilter = benefitDateFilter(month, year, scope);
   const result = await db.execute(sql`
     SELECT
       i.id, i.benefit_id, a.id AS affiliate_id, a.full_name, a.dni,
@@ -175,7 +188,7 @@ export async function getCobradoDetail(month: number, year: number): Promise<Cob
     FROM installments i
     JOIN benefits b ON b.id = i.benefit_id
     JOIN affiliates a ON a.id = i.affiliate_id
-    WHERE i.status = 'paid' AND b.date BETWEEN ${start} AND ${end}
+    WHERE i.status = 'paid' AND ${dateFilter}
     ORDER BY i.paid_date DESC, a.full_name ASC
   `);
 
@@ -222,9 +235,8 @@ export interface FaltaCobrarData {
   rows: FaltaCobrarRow[];
 }
 
-export async function getFaltaCobrarDetail(month: number, year: number): Promise<FaltaCobrarData> {
-  const { start, end } = bounds(month, year);
-  const today = format(new Date(), "yyyy-MM-dd");
+export async function getFaltaCobrarDetail(month: number, year: number, scope: MetricScope = "month"): Promise<FaltaCobrarData> {
+  const dateFilter = benefitDateFilter(month, year, scope);
   const result = await db.execute(sql`
     SELECT
       i.id, i.benefit_id, a.id AS affiliate_id, a.full_name, a.dni, a.legajo,
@@ -238,7 +250,7 @@ export async function getFaltaCobrarDetail(month: number, year: number): Promise
     JOIN benefits b ON b.id = i.benefit_id
     JOIN affiliates a ON a.id = i.affiliate_id
     WHERE i.status IN ('pending','overdue')
-      AND b.date BETWEEN ${start} AND ${end}
+      AND ${dateFilter}
     ORDER BY i.status DESC, i.due_date ASC, a.full_name ASC
   `);
 
@@ -279,13 +291,17 @@ export interface GananciaEstimadaRow {
 
 export interface GananciaEstimadaData {
   totalProfit: number; totalCapital: number; totalRepayment: number;
+  /** Retención a comercios (parte de la ganancia que no es interés). */
+  totalRetention: number;
+  /** Ganancia total del sindicato = intereses + retención. */
+  totalUnionProfit: number;
   avgRate: number; benefitsCount: number;
   byType: { label: string; amount: number; count: number }[];
   rows: GananciaEstimadaRow[];
 }
 
-export async function getGananciaEstimadaDetail(month: number, year: number): Promise<GananciaEstimadaData> {
-  const { start, end } = bounds(month, year);
+export async function getGananciaEstimadaDetail(month: number, year: number, scope: MetricScope = "month"): Promise<GananciaEstimadaData> {
+  const dateFilter = benefitDateFilter(month, year, scope);
   const result = await db.execute(sql`
     SELECT
       b.id, a.id AS affiliate_id, a.full_name, a.dni, b.type,
@@ -293,30 +309,34 @@ export async function getGananciaEstimadaDetail(month: number, year: number): Pr
       b.total_repayment_amount::numeric AS total_repayment,
       b.interest_amount::numeric AS interest_amount,
       b.interest_rate::numeric AS interest_rate,
+      COALESCE(b.union_profit_amount, b.interest_amount, 0)::numeric AS union_profit,
       b.installments_count, b.status,
       COALESCE(COUNT(i.id) FILTER (WHERE i.status = 'paid'), 0)::int AS paid_count
     FROM benefits b
     JOIN affiliates a ON a.id = b.affiliate_id
     LEFT JOIN installments i ON i.benefit_id = b.id
-    WHERE b.date BETWEEN ${start} AND ${end}
+    WHERE ${dateFilter}
       AND b.status != 'cancelled'
-      AND b.interest_amount::numeric > 0
+      AND COALESCE(b.union_profit_amount, b.interest_amount, 0)::numeric > 0
     GROUP BY b.id, a.id, a.full_name, a.dni
-    ORDER BY b.interest_amount::numeric DESC
+    ORDER BY COALESCE(b.union_profit_amount, b.interest_amount, 0)::numeric DESC
   `);
 
-  type R = { id: string; affiliate_id: string; full_name: string; dni: string; type: string; total_amount: string; total_repayment: string; interest_amount: string; interest_rate: string; installments_count: number; paid_count: number; status: string; };
+  type R = { id: string; affiliate_id: string; full_name: string; dni: string; type: string; total_amount: string; total_repayment: string; interest_amount: string; interest_rate: string; union_profit: string; installments_count: number; paid_count: number; status: string; };
   const rows = result.rows as R[];
 
   const totalProfit = roundMoney(rows.reduce((s, r) => s + Number(r.interest_amount), 0));
   const totalCapital = roundMoney(rows.reduce((s, r) => s + Number(r.total_amount), 0));
   const totalRepayment = roundMoney(rows.reduce((s, r) => s + Number(r.total_repayment), 0));
+  const totalUnionProfit = roundMoney(rows.reduce((s, r) => s + Number(r.union_profit), 0));
+  const totalRetention = roundMoney(Math.max(0, totalUnionProfit - totalProfit));
   const avgRate = rows.length > 0
     ? roundMoney(rows.reduce((s, r) => s + Number(r.interest_rate), 0) / rows.length)
     : 0;
 
   return {
-    totalProfit, totalCapital, totalRepayment, avgRate, benefitsCount: rows.length,
+    totalProfit, totalCapital, totalRepayment, totalRetention, totalUnionProfit,
+    avgRate, benefitsCount: rows.length,
     byType: byTypeAgg(rows.map(r => ({ type: r.type, amount: Number(r.interest_amount), count: 1 }))),
     rows: rows.map(r => ({
       id: r.id, affiliateId: r.affiliate_id, fullName: r.full_name, dni: r.dni,
@@ -346,8 +366,8 @@ export interface GananciaPendienteData {
   rows: GananciaPendienteRow[];
 }
 
-export async function getGananciaPendienteDetail(month: number, year: number): Promise<GananciaPendienteData> {
-  const { start, end } = bounds(month, year);
+export async function getGananciaPendienteDetail(month: number, year: number, scope: MetricScope = "month"): Promise<GananciaPendienteData> {
+  const dateFilter = benefitDateFilter(month, year, scope);
   const result = await db.execute(sql`
     SELECT
       i.id, i.benefit_id, a.id AS affiliate_id, a.full_name, a.dni,
@@ -359,7 +379,7 @@ export async function getGananciaPendienteDetail(month: number, year: number): P
     JOIN benefits b ON b.id = i.benefit_id
     JOIN affiliates a ON a.id = i.affiliate_id
     WHERE i.status IN ('pending','overdue')
-      AND b.date BETWEEN ${start} AND ${end}
+      AND ${dateFilter}
       AND b.interest_amount::numeric > 0
     ORDER BY i.due_date ASC, a.full_name ASC
   `);
@@ -370,13 +390,13 @@ export async function getGananciaPendienteDetail(month: number, year: number): P
     FROM installments i
     JOIN benefits b ON b.id = i.benefit_id
     WHERE i.status = 'paid'
-      AND b.date BETWEEN ${start} AND ${end}
+      AND ${dateFilter}
   `);
 
   const totalResult = await db.execute(sql`
     SELECT COALESCE(SUM(b.interest_amount::numeric), 0) AS total
     FROM benefits b
-    WHERE b.date BETWEEN ${start} AND ${end} AND b.status != 'cancelled'
+    WHERE ${dateFilter} AND b.status != 'cancelled'
   `);
 
   type R = { id: string; benefit_id: string; affiliate_id: string; full_name: string; dni: string; type: string; installment_number: number; total_installments: number; amount: string; due_date: string; status: string; interest_amount: string; installments_count: number; };

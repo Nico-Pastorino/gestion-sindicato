@@ -33,6 +33,8 @@ import {
   calculateTotalRepayment,
   calculateInterest,
   calculateInterestRate,
+  calculateCreditLimit,
+  roundMoney,
 } from "@/lib/utils/credit";
 import { formatCurrencyARS } from "@/lib/utils/currency";
 import { toISODate, formatDate, generateInstallmentDueDates } from "@/lib/utils/date";
@@ -78,6 +80,10 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
     installmentAmount: 0,
     commerceRetentionRate: 0,
     observations: "",
+    // Sueldo bruto: se carga/edita acá (el módulo Afiliados ya no lo pide).
+    grossSalary: preselectedAffiliate?.creditSummary?.grossSalary
+      ? Number(preselectedAffiliate.creditSummary.grossSalary)
+      : 0,
   });
 
   // ─── Fechas automáticas (regla día 20) ───────────────────────────────────
@@ -107,6 +113,16 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
     ? Math.round(form.totalAmount * (form.commerceRetentionRate / 100) * 100) / 100
     : 0;
   const unionProfit = Math.round((interestAmount + commerceRetentionAmount) * 100) / 100;
+
+  // ─── Tope del 30% en vivo, según el sueldo cargado en este formulario ─────
+  // No usamos creditSummary.creditLimit30/availableAmount directo porque son
+  // el valor YA GUARDADO en el afiliado; acá el operador puede estar
+  // cargando o corrigiendo el sueldo recién ahora.
+  const hadStoredSalary = Number(creditSummary?.grossSalary ?? 0) > 0;
+  const creditLimit30 = calculateCreditLimit(form.grossSalary);
+  const activeDiscounts = Number(creditSummary?.activeDiscounts ?? 0);
+  const availableAmount = roundMoney(creditLimit30 - activeDiscounts);
+
   // ─── Búsqueda de afiliado ─────────────────────────────────────────────────
   const searchAffiliate = useCallback(async (q: string) => {
     if (q.length < 2) { setSearchResults([]); return; }
@@ -131,14 +147,20 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
     setAffiliateSearch("");
     setAffiliate({ id: a.affiliateId, fullName: a.fullName, dni: a.dni });
     setCreditSummary(a);
-    setErrors((p) => ({ ...p, affiliateId: "" }));
+    setForm((prev) => ({
+      ...prev,
+      grossSalary: a.grossSalary ? Number(a.grossSalary) : 0,
+    }));
+    setErrors((p) => ({ ...p, affiliateId: "", grossSalary: "" }));
     setProjection(null);
   }
 
   // ─── Proyección mensual (auto-debounce 600ms) ─────────────────────────────
+  // Usa el sueldo bruto cargado en ESTE formulario (no el ya guardado), para
+  // que el tope del 30% refleje un sueldo recién ingresado o corregido.
   useEffect(() => {
     clearTimeout(projectionTimer.current);
-    if (!affiliate || form.installmentAmount <= 0 || !firstDueDate) {
+    if (!affiliate || form.installmentAmount <= 0 || !firstDueDate || form.grossSalary <= 0) {
       return;
     }
 
@@ -150,6 +172,7 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
           installmentAmount: String(form.installmentAmount),
           installmentsCount: String(form.installmentsCount),
           firstDueDate,
+          grossSalary: String(form.grossSalary),
         });
         const res = await fetch(`/api/affiliates/${affiliate.id}/credit-projection?${params}`);
         if (!res.ok) return;
@@ -161,7 +184,7 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
     }, 600);
 
     return () => clearTimeout(projectionTimer.current);
-  }, [affiliate, affiliate?.id, form.installmentAmount, form.installmentsCount, firstDueDate]);
+  }, [affiliate, affiliate?.id, form.installmentAmount, form.installmentsCount, firstDueDate, form.grossSalary]);
 
   // ─── Actualización del form ───────────────────────────────────────────────
   function set(field: string, value: string | number) {
@@ -175,7 +198,7 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
       }
       return next;
     });
-    if (["date", "installmentAmount", "installmentsCount"].includes(field)) {
+    if (["date", "installmentAmount", "installmentsCount", "grossSalary"].includes(field)) {
       setProjection(null);
     }
     setErrors((p) => ({ ...p, [field]: "" }));
@@ -195,21 +218,27 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
       e.commerce = "Ingresá el comercio adherido";
     if (form.type === "supermercado" && form.commerceRetentionRate <= 0)
       e.commerceRetentionRate = "La retención debe ser mayor a 0%";
+    if (affiliate && form.grossSalary <= 0) {
+      e.grossSalary = "Ingresá el sueldo bruto del afiliado";
+    }
 
     // Bloquear si la proyección todavía se está cargando o si tiene conflictos
-    if (isProjecting) {
-      e.installmentAmount = "Verificando disponibilidad mensual, esperá un momento...";
-    } else if (projection && !projection.valid) {
-      e.installmentAmount = "La cuota supera el tope mensual del 30% en uno o más meses";
-    } else if (
-      !projection &&
-      affiliate &&
-      form.installmentAmount > 0 &&
-      form.installmentsCount >= 1 &&
-      form.date
-    ) {
-      // Todos los campos están completos pero la proyección no se cargó aún
-      e.installmentAmount = "Esperando verificación de disponibilidad...";
+    // (solo aplica si ya hay un sueldo válido; sin sueldo no hay proyección que esperar)
+    if (form.grossSalary > 0) {
+      if (isProjecting) {
+        e.installmentAmount = "Verificando disponibilidad mensual, esperá un momento...";
+      } else if (projection && !projection.valid) {
+        e.installmentAmount = "La cuota supera el tope mensual del 30% en uno o más meses";
+      } else if (
+        !projection &&
+        affiliate &&
+        form.installmentAmount > 0 &&
+        form.installmentsCount >= 1 &&
+        form.date
+      ) {
+        // Todos los campos están completos pero la proyección no se cargó aún
+        e.installmentAmount = "Esperando verificación de disponibilidad...";
+      }
     }
 
     setErrors(e);
@@ -238,6 +267,8 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
             installmentAmount: form.installmentAmount,
             commerceRetentionRate: form.commerceRetentionRate,
             observations: form.observations.trim() || null,
+            // El backend actualiza el sueldo del afiliado (con auditoría) antes de validar el 30%
+            grossSalary: form.grossSalary,
           }),
         });
 
@@ -263,14 +294,17 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
 
   const maxInstallments = MAX_INSTALLMENTS[form.type] ?? 3;
   const hasConflicts = projection !== null && !projection.valid;
+  const missingSalary = affiliate !== null && form.grossSalary <= 0;
   const projectionRequired = affiliate !== null &&
     form.installmentAmount > 0 &&
     form.installmentsCount >= 1 &&
-    !!form.date;
+    !!form.date &&
+    form.grossSalary > 0;
   const canSubmit =
     !isPending &&
     !isProjecting &&
     !hasConflicts &&
+    !missingSalary &&
     (!projectionRequired || projection !== null);
 
   return (
@@ -304,7 +338,12 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => { setAffiliate(undefined); setCreditSummary(null); setProjection(null); }}
+                onClick={() => {
+                  setAffiliate(undefined);
+                  setCreditSummary(null);
+                  setProjection(null);
+                  setForm((prev) => ({ ...prev, grossSalary: 0 }));
+                }}
               >
                 Cambiar
               </Button>
@@ -353,25 +392,45 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
             </div>
           )}
 
-          {/* Panel disponible del afiliado */}
-          {creditSummary && (
-            <div className="rounded-lg bg-[hsl(var(--muted))]/40 p-3 space-y-2">
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div>
-                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Salario Bruto</p>
-                  <p className="text-sm font-semibold"><SensitiveValue value={formatCurrencyARS(creditSummary.grossSalary)} /></p>
-                </div>
-                <div>
-                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Máximo a descontar (30%)</p>
-                  <p className="text-sm font-semibold text-blue-600"><SensitiveValue value={formatCurrencyARS(creditSummary.creditLimit30)} /></p>
-                </div>
-                <div>
-                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Disponible para descontar</p>
-                  <p className={`text-sm font-bold ${Number(creditSummary.availableAmount) <= 0 ? "text-red-600" : "text-green-600"}`}>
-                    <SensitiveValue value={formatCurrencyARS(creditSummary.availableAmount)} />
+          {/* Sueldo bruto + tope 30% en vivo */}
+          {affiliate && (
+            <div className="rounded-lg bg-[hsl(var(--muted))]/40 p-3 space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="grossSalary">
+                  Sueldo bruto {hadStoredSalary ? "" : <span className="text-red-500">*</span>}
+                </Label>
+                <CurrencyInput
+                  id="grossSalary"
+                  value={form.grossSalary}
+                  onChange={(v) => set("grossSalary", v)}
+                  placeholder="654.361,66"
+                  hasError={!!errors.grossSalary}
+                />
+                {errors.grossSalary ? (
+                  <p className="text-xs text-red-600">{errors.grossSalary}</p>
+                ) : (
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                    {hadStoredSalary
+                      ? "Ya cargado para este afiliado. Podés corregirlo si cambió."
+                      : "Este afiliado no tiene sueldo cargado. Es obligatorio para poder otorgar el beneficio."}
                   </p>
-                </div>
+                )}
               </div>
+
+              {form.grossSalary > 0 && (
+                <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-2">
+                  <div>
+                    <p className="text-xs text-[hsl(var(--muted-foreground))]">Máximo a descontar (30%)</p>
+                    <p className="text-sm font-semibold text-blue-600"><SensitiveValue value={formatCurrencyARS(creditLimit30)} /></p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[hsl(var(--muted-foreground))]">Disponible para descontar</p>
+                    <p className={`text-sm font-bold ${availableAmount <= 0 ? "text-red-600" : "text-green-600"}`}>
+                      <SensitiveValue value={formatCurrencyARS(availableAmount)} />
+                    </p>
+                  </div>
+                </div>
+              )}
               <p className="text-xs text-[hsl(var(--muted-foreground))] text-center">
                 El sistema valida que cada cuota mensual, sumada a otros descuentos del mismo mes, no supere el tope del 30%.
               </p>

@@ -7,29 +7,34 @@ import {
   Phone,
   MapPin,
   CreditCard,
-  Gift,
   Hash,
   AlertTriangle,
   BriefcaseBusiness,
   UserRound,
-  ArrowRight,
   Mail,
+  IdCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AffiliateStatusBadge } from "@/components/ui/badge";
 import { SensitiveText, SensitiveValue } from "@/components/privacy/sensitive-value";
-import { formatCurrency } from "@/lib/utils/credit";
+import { DeleteAffiliateButton } from "@/components/affiliates/delete-affiliate-button";
+import { AffiliateAvatar } from "@/components/affiliates/affiliate-avatar";
+import { AffiliateFilesCard } from "@/components/affiliates/affiliate-files-card";
+import { FamilyMembersCard } from "@/components/affiliates/family-members-card";
 import { formatDate } from "@/lib/utils/date";
 import {
   formatEmploymentType,
   formatSex,
   formatDocumentationStatus,
   formatAffiliateStatus,
+  formatInactiveReason,
   isUuid,
 } from "@/lib/utils/labels";
 import { getAffiliateById } from "@/lib/services/affiliates.service";
 import { getAffiliateActivity } from "@/lib/services/audit.service";
+import { listAffiliateFiles } from "@/lib/services/files.service";
+import { listFamilyMembers } from "@/lib/services/family.service";
 import { ActivityTimeline } from "@/components/audit/activity-timeline";
 
 export const dynamic = "force-dynamic";
@@ -49,15 +54,16 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
   const { id } = await params;
   if (!isUuid(id)) notFound();
 
-  const [data, activity] = await Promise.all([
+  const [data, activity, files, family] = await Promise.all([
     getAffiliateById(id),
     getAffiliateActivity(id),
+    listAffiliateFiles(id),
+    listFamilyMembers(id),
   ]);
 
   if (!data) notFound();
 
   const hasSalary = data.grossSalary != null && Number(data.grossSalary) > 0;
-  const activeBenefitsCount = data.benefits.filter((b) => b.status === "active").length;
 
   return (
     <div className="space-y-6">
@@ -71,8 +77,11 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
             </Link>
           </Button>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{data.fullName}</h1>
-            <AffiliateStatusBadge status={data.status} />
+            <AffiliateAvatar name={data.fullName} photoUrl={data.photoUrl} size="lg" />
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-bold">{data.fullName}</h1>
+              <AffiliateStatusBadge status={data.status} />
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-[hsl(var(--muted-foreground))]">
             <span className="flex items-center gap-1">
@@ -107,54 +116,50 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
         </div>
         <div className="flex gap-2 shrink-0">
           <Button variant="outline" asChild>
+            <Link href={`/afiliados/${data.id}/credencial`}>
+              <IdCard className="h-4 w-4" />
+              Credencial
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
             <Link href={`/afiliados/${data.id}/editar`}>
               <Pencil className="h-4 w-4" />
               Editar
             </Link>
           </Button>
+          <DeleteAffiliateButton
+            affiliateId={data.id}
+            affiliateName={data.fullName}
+            redirectTo="/afiliados"
+          />
         </div>
       </div>
 
-      {/* Alerta sueldo pendiente (necesario para cargar beneficios) */}
+      {/* Motivo de baja (solo si está inactivo) */}
+      {data.status === "inactive" && (
+        <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <UserRound className="h-5 w-5 shrink-0 text-slate-500" />
+          <p className="text-sm text-slate-700">
+            <strong>Afiliado dado de baja.</strong>{" "}
+            Motivo: {formatInactiveReason(data.inactiveReason)}
+            {data.inactiveDate ? ` · Fecha: ${formatDate(data.inactiveDate)}` : ""}
+          </p>
+        </div>
+      )}
+
+      {/* Alerta sueldo pendiente (se carga desde Beneficios) */}
       {!hasSalary && (
         <div className="flex items-center gap-3 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3">
           <AlertTriangle className="h-5 w-5 text-yellow-600 shrink-0" />
           <div className="text-sm text-yellow-800">
             <strong>Sueldo bruto pendiente de carga.</strong>{" "}
-            Sin sueldo no se pueden cargar beneficios para este afiliado.{" "}
-            <Link href={`/afiliados/${data.id}/editar`} className="underline font-medium">
-              Completar ahora
+            Se completa al cargar el primer beneficio.{" "}
+            <Link href={`/beneficios/nuevo?affiliateId=${data.id}`} className="underline font-medium">
+              Cargar beneficio
             </Link>
           </div>
         </div>
       )}
-
-      {/* Referencia simple de beneficios (la gestión vive en Beneficios) */}
-      <Card className={activeBenefitsCount > 0 ? "border-purple-200 bg-purple-50/40" : ""}>
-        <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
-              <Gift className="h-5 w-5 text-purple-700" />
-            </div>
-            <div>
-              <p className="font-semibold">
-                {activeBenefitsCount > 0
-                  ? `Tiene ${activeBenefitsCount} beneficio${activeBenefitsCount !== 1 ? "s" : ""} activo${activeBenefitsCount !== 1 ? "s" : ""}`
-                  : "No tiene beneficios activos"}
-              </p>
-              <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                Las cuotas, el tope del 30% y la carga de beneficios se manejan en el módulo Beneficios.
-              </p>
-            </div>
-          </div>
-          <Button asChild>
-            <Link href={`/beneficios/afiliado/${data.id}`}>
-              Ver beneficios del afiliado
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
 
       {/* Datos personales y laborales */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -193,11 +198,6 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
             <InfoItem label="Fecha de ingreso" value={data.hireDate ? formatDate(data.hireDate) : "Sin dato"} />
             <InfoItem label="Antigüedad" value={data.hireDate ? calculateSeniority(data.hireDate) : "Sin dato"} />
             <InfoItem label="Afiliado desde" value={data.affiliationDate ? formatDate(data.affiliationDate) : "Sin dato"} />
-            <InfoItem
-              label="Sueldo bruto"
-              value={hasSalary ? undefined : "Pendiente de carga"}
-              sensitiveValue={hasSalary ? formatCurrency(data.grossSalary!) : undefined}
-            />
           </CardContent>
         </Card>
       </div>
@@ -236,6 +236,12 @@ export default async function AffiliateDetailPage({ params }: PageProps) {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Grupo familiar y archivos */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <FamilyMembersCard affiliateId={data.id} members={family} />
+        <AffiliateFilesCard affiliateId={data.id} files={files} />
       </div>
 
       {/* Actividad */}

@@ -10,8 +10,16 @@ import {
   jsonb,
   uniqueIndex,
   index,
+  customType,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+
+// Postgres BYTEA (drizzle no lo trae de fábrica)
+const bytea = customType<{ data: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
 
 // ─── Timestamps helper ────────────────────────────────────────────────────────
 
@@ -81,9 +89,16 @@ export const affiliates = pgTable(
       .notNull()
       .default("pending"),
     privateNotes: text("private_notes"),
+    // Foto de perfil (se mantiene sincronizada con affiliate_files kind='foto')
+    photoUrl: text("photo_url"),
     status: text("status", { enum: ["active", "inactive"] })
       .notNull()
       .default("active"),
+    // Motivo y fecha de baja (solo tienen sentido cuando status = 'inactive')
+    inactiveReason: text("inactive_reason", {
+      enum: ["renuncia", "jubilacion", "fallecimiento", "traslado", "otro"],
+    }),
+    inactiveDate: date("inactive_date"),
     ...timestamps,
   },
   (t) => [
@@ -269,11 +284,130 @@ export const exportLogs = pgTable(
   ]
 );
 
+// ─── affiliate_files ─────────────────────────────────────────────────────────
+// Archivos adjuntos por afiliado (foto de perfil, DNI escaneado, ficha firmada,
+// certificados). El binario vive en la propia base (columna data); se sirve
+// por /api/files/[id]. Al borrar el afiliado caen en cascada.
+
+export const affiliateFiles = pgTable(
+  "affiliate_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    affiliateId: uuid("affiliate_id")
+      .notNull()
+      .references(() => affiliates.id, { onDelete: "cascade" }),
+    kind: text("kind", {
+      enum: ["foto", "dni", "ficha_firmada", "certificado", "otro"],
+    })
+      .notNull()
+      .default("otro"),
+    // URL interna que sirve el archivo (/api/files/{id})
+    url: text("url").notNull(),
+    // Identificador de almacenamiento (legado de Vercel Blob; hoy "neon/{id}")
+    pathname: text("pathname").notNull(),
+    fileName: text("file_name").notNull(),
+    contentType: text("content_type"),
+    sizeBytes: integer("size_bytes"),
+    data: bytea("data"),
+    uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("affiliate_files_affiliate_id_idx").on(t.affiliateId),
+    index("affiliate_files_kind_idx").on(t.kind),
+  ]
+);
+
+// ─── family_members ──────────────────────────────────────────────────────────
+// Grupo familiar del afiliado (para beneficios sociales: útiles escolares,
+// día del niño, obra social). El certificado de alumno regular habilita la
+// entrega de útiles al comienzo de clases.
+
+export const familyMembers = pgTable(
+  "family_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    affiliateId: uuid("affiliate_id")
+      .notNull()
+      .references(() => affiliates.id, { onDelete: "cascade" }),
+    fullName: text("full_name").notNull(),
+    relationship: text("relationship", {
+      enum: ["conyuge", "concubino_a", "hijo_a", "otro"],
+    })
+      .notNull()
+      .default("hijo_a"),
+    dni: text("dni"),
+    birthDate: date("birth_date"),
+    studentCertificate: boolean("student_certificate").notNull().default(false),
+    studentCertificateDate: date("student_certificate_date"),
+    notes: text("notes"),
+    ...timestamps,
+  },
+  (t) => [
+    index("family_members_affiliate_id_idx").on(t.affiliateId),
+    index("family_members_student_certificate_idx").on(t.studentCertificate),
+  ]
+);
+
+// ─── reminders ───────────────────────────────────────────────────────────────
+// Recordatorios internos del equipo, visibles en el Inicio.
+
+export const reminders = pgTable(
+  "reminders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    title: text("title").notNull(),
+    dueDate: date("due_date"),
+    status: text("status", { enum: ["pending", "done"] })
+      .notNull()
+      .default("pending"),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [
+    index("reminders_status_idx").on(t.status),
+    index("reminders_due_date_idx").on(t.dueDate),
+  ]
+);
+
+// ─── announcements ───────────────────────────────────────────────────────────
+// Novedades internas del sindicato que se muestran en el Inicio.
+
+export const announcements = pgTable(
+  "announcements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    title: text("title").notNull(),
+    body: text("body"),
+    active: boolean("active").notNull().default(true),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [index("announcements_active_idx").on(t.active)]
+);
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
 export const affiliatesRelations = relations(affiliates, ({ many }) => ({
   benefits: many(benefits),
   installments: many(installments),
+  files: many(affiliateFiles),
+  familyMembers: many(familyMembers),
+}));
+
+export const affiliateFilesRelations = relations(affiliateFiles, ({ one }) => ({
+  affiliate: one(affiliates, {
+    fields: [affiliateFiles.affiliateId],
+    references: [affiliates.id],
+  }),
+}));
+
+export const familyMembersRelations = relations(familyMembers, ({ one }) => ({
+  affiliate: one(affiliates, {
+    fields: [familyMembers.affiliateId],
+    references: [affiliates.id],
+  }),
 }));
 
 export const benefitsRelations = relations(benefits, ({ one, many }) => ({
@@ -336,3 +470,15 @@ export type NewSetting = typeof settings.$inferInsert;
 
 export type ExportLog = typeof exportLogs.$inferSelect;
 export type NewExportLog = typeof exportLogs.$inferInsert;
+
+export type AffiliateFile = typeof affiliateFiles.$inferSelect;
+export type NewAffiliateFile = typeof affiliateFiles.$inferInsert;
+
+export type FamilyMember = typeof familyMembers.$inferSelect;
+export type NewFamilyMember = typeof familyMembers.$inferInsert;
+
+export type Reminder = typeof reminders.$inferSelect;
+export type NewReminder = typeof reminders.$inferInsert;
+
+export type Announcement = typeof announcements.$inferSelect;
+export type NewAnnouncement = typeof announcements.$inferInsert;

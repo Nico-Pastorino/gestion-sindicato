@@ -12,6 +12,7 @@ import {
   getAffiliateFilterOptions,
 } from "@/lib/services/affiliates.service";
 import { affiliateExploreSchema } from "@/lib/validations/affiliate.schema";
+import { formatEmploymentType } from "@/lib/utils/labels";
 import { ExplorarClient } from "./explorar-client";
 
 export const metadata: Metadata = { title: "Explorar afiliados" };
@@ -20,13 +21,6 @@ export const dynamic = "force-dynamic";
 interface PageProps {
   searchParams: Promise<Record<string, string | undefined>>;
 }
-
-const EMPLOYMENT_LABELS: Record<string, string> = {
-  planta: "Planta",
-  contratado: "Contratado",
-  jubilado: "Jubilado",
-  otro: "Otro",
-};
 
 export default async function ExplorarAfiliadosPage({ searchParams }: PageProps) {
   const sp = await searchParams;
@@ -132,14 +126,14 @@ export default async function ExplorarAfiliadosPage({ searchParams }: PageProps)
                       </td>
                       <td className="py-2.5 px-3 hidden lg:table-cell">{r.city ?? "—"}</td>
                       <td className="py-2.5 px-3 hidden lg:table-cell">
-                        {r.employmentType ? EMPLOYMENT_LABELS[r.employmentType] ?? r.employmentType : "—"}
+                        {r.employmentType ? formatEmploymentType(r.employmentType) : "—"}
                       </td>
                       <td className="py-2.5 px-3">
                         <AffiliateStatusBadge status={r.status as "active" | "inactive"} />
                       </td>
                       <td className="py-2.5 px-4 text-right">
                         <Link
-                          href={`/afiliados/${encodeURIComponent(r.dni)}`}
+                          href={`/afiliados/${r.id}`}
                           className="text-xs text-[hsl(var(--primary))] hover:underline"
                           prefetch={false}
                         >

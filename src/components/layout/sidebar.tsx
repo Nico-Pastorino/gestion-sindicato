@@ -11,6 +11,7 @@ import {
   Building2,
   ChevronRight,
   HandCoins,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
@@ -28,6 +29,7 @@ const navItems: NavItem[] = [
   { href: "/cobranzas",       label: "Cobranzas",      icon: HandCoins },
   { href: "/analisis",        label: "Análisis",       icon: BarChart3 },
   { href: "/exportar",        label: "Exportar",       icon: FileDown },
+  { href: "/configuracion",   label: "Configuración",  icon: Settings },
 ];
 
 

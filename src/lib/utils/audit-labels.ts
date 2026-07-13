@@ -16,6 +16,7 @@ export interface AuditLogRow {
 export const AUDIT_ACTION_LABELS: Record<string, string> = {
   affiliate_created: "Afiliado creado",
   affiliate_updated: "Afiliado actualizado",
+  affiliate_deleted: "Afiliado eliminado",
   benefit_created: "Beneficio creado",
   benefit_updated: "Beneficio actualizado",
   benefit_cancelled: "Beneficio cancelado",
@@ -30,6 +31,16 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   user_updated: "Usuario actualizado",
   user_password_reset: "Contraseña restablecida",
   user_deleted: "Usuario eliminado",
+  affiliates_imported: "Afiliados importados desde Excel",
+  family_member_added: "Familiar agregado",
+  family_member_updated: "Familiar actualizado",
+  family_member_removed: "Familiar eliminado",
+  affiliate_file_uploaded: "Archivo subido",
+  affiliate_file_deleted: "Archivo eliminado",
+  settings_updated: "Configuración actualizada",
+  announcement_created: "Novedad creada",
+  announcement_updated: "Novedad actualizada",
+  announcement_deleted: "Novedad eliminada",
 };
 
 export const AUDIT_ENTITY_LABELS: Record<string, string> = {
@@ -38,6 +49,8 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   installment: "Cuota",
   user: "Usuario",
   export: "Exportación",
+  settings: "Configuración",
+  announcement: "Novedad",
 };
 
 export function auditActionLabel(action: string): string {

@@ -8,7 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   AlertTriangle,
   BriefcaseBusiness,
@@ -21,8 +20,6 @@ import {
   Shield,
   User,
 } from "lucide-react";
-import { calculateCreditLimit, formatCurrency } from "@/lib/utils/credit";
-import { CurrencyInput } from "@/components/ui/currency-input";
 import type { Affiliate } from "@/types";
 
 interface AffiliateFormProps {
@@ -53,7 +50,6 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
     workShift: affiliate?.workShift ?? "",
     hireDate: affiliate?.hireDate ?? "",
     affiliationDate: affiliate?.affiliationDate ?? "",
-    grossSalary: affiliate?.grossSalary ? Number(affiliate.grossSalary) : 0,
     phone: affiliate?.phone ?? "",
     alternatePhone: affiliate?.alternatePhone ?? "",
     email: affiliate?.email ?? "",
@@ -72,9 +68,9 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
     documentationStatus: affiliate?.documentationStatus ?? "pending",
     privateNotes: affiliate?.privateNotes ?? "",
     status: affiliate?.status ?? "active",
+    inactiveReason: affiliate?.inactiveReason ?? "",
+    inactiveDate: affiliate?.inactiveDate ?? "",
   });
-
-  const creditLimit = calculateCreditLimit(form.grossSalary);
 
   function set(field: string, value: string | number) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -87,7 +83,6 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
     if (form.fullName.trim().length < 2) newErrors.fullName = "Mínimo 2 caracteres";
     if (!form.dni.trim()) newErrors.dni = "El DNI es obligatorio";
     if (!/^\d{7,15}$/.test(form.dni.trim())) newErrors.dni = "DNI inválido (solo números, 7-15 dígitos)";
-    if (form.grossSalary < 0) newErrors.grossSalary = "El salario no puede ser negativo";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -111,7 +106,6 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
           workShift: form.workShift.trim() || null,
           hireDate: form.hireDate || null,
           affiliationDate: form.affiliationDate || null,
-          grossSalary: form.grossSalary > 0 ? form.grossSalary : null,
           phone: form.phone.trim() || null,
           alternatePhone: form.alternatePhone.trim() || null,
           email: form.email.trim() || null,
@@ -130,6 +124,9 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
           documentationStatus: form.documentationStatus,
           privateNotes: form.privateNotes.trim() || null,
           status: form.status,
+          // El motivo de baja solo aplica a afiliados inactivos
+          inactiveReason: form.status === "inactive" ? form.inactiveReason || null : null,
+          inactiveDate: form.status === "inactive" ? form.inactiveDate || null : null,
         };
 
         const url =
@@ -336,6 +333,40 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
               </Select>
             </div>
           </div>
+
+          {/* Motivo de baja (solo al pasar a Inactivo) */}
+          {form.status === "inactive" && (
+            <div className="grid grid-cols-1 gap-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="inactiveReason">Motivo de la baja</Label>
+                <Select
+                  value={form.inactiveReason || "none"}
+                  onValueChange={(v) => set("inactiveReason", v === "none" ? "" : v)}
+                >
+                  <SelectTrigger id="inactiveReason">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin especificar</SelectItem>
+                    <SelectItem value="renuncia">Renuncia</SelectItem>
+                    <SelectItem value="jubilacion">Jubilación</SelectItem>
+                    <SelectItem value="fallecimiento">Fallecimiento</SelectItem>
+                    <SelectItem value="traslado">Traslado</SelectItem>
+                    <SelectItem value="otro">Otro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="inactiveDate">Fecha de la baja</Label>
+                <Input
+                  id="inactiveDate"
+                  type="date"
+                  value={form.inactiveDate}
+                  onChange={(e) => set("inactiveDate", e.target.value)}
+                />
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -480,49 +511,12 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
                 onChange={(e) => set("affiliationDate", e.target.value)}
               />
             </div>
-
-            {/* Salario bruto */}
-            <div className="space-y-1.5">
-              <Label htmlFor="grossSalary">
-                Salario Bruto Mensual
-                <span className="ml-1 text-xs text-[hsl(var(--muted-foreground))]">(opcional)</span>
-              </Label>
-              <CurrencyInput
-                id="grossSalary"
-                value={form.grossSalary}
-                onChange={(v) => set("grossSalary", v)}
-                placeholder="654.361,66"
-                hasError={!!errors.grossSalary}
-              />
-              {errors.grossSalary ? (
-                <p className="text-xs text-red-600">{errors.grossSalary}</p>
-              ) : (
-                <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                  Requerido para cargar beneficios. Se puede completar después.
-                </p>
-              )}
-            </div>
           </div>
 
-          {/* Preview del tope 30% */}
-          {form.grossSalary > 0 && (
-            <>
-              <Separator />
-              <div className="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-blue-700 font-medium">
-                    Máximo a descontar por mes (30%)
-                  </span>
-                  <span className="text-blue-800 font-bold text-base">
-                    {formatCurrency(creditLimit)}
-                  </span>
-                </div>
-                <p className="text-xs text-blue-600 mt-1">
-                  Máximo que se puede descontar por mes en cuotas acumuladas.
-                </p>
-              </div>
-            </>
-          )}
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            El sueldo bruto y el tope de crédito (30%) se cargan y editan desde{" "}
+            <span className="font-medium">Beneficios</span> al otorgar un beneficio.
+          </p>
         </CardContent>
       </Card>
 

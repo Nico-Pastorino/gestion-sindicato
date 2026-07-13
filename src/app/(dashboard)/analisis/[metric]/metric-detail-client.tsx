@@ -17,6 +17,7 @@ import type {
 } from "@/lib/services/dashboard-detail.service";
 
 type ValidMetric = "capital-entregado" | "total-a-cobrar" | "cobrado" | "falta-cobrar" | "ganancia-estimada" | "ganancia-pendiente";
+type MetricScope = "month" | "year" | "all";
 
 interface Props {
   metric: ValidMetric;
@@ -24,40 +25,50 @@ interface Props {
   subtitle: string;
   initialMonth: number;
   initialYear: number;
+  initialScope: MetricScope;
   periodLabel: string;
   initialData: unknown;
 }
 
 const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
-export function MetricDetailClient({ metric, title, subtitle, initialMonth, initialYear, periodLabel, initialData }: Props) {
+const SCOPES: Array<{ value: MetricScope; label: string }> = [
+  { value: "month", label: "Por mes" },
+  { value: "year", label: "Año completo" },
+  { value: "all", label: "Todo el historial" },
+];
+
+export function MetricDetailClient({ metric, title, subtitle, initialMonth, initialYear, initialScope, periodLabel, initialData }: Props) {
   const router = useRouter();
   const [month, setMonth] = useState(initialMonth);
   const [year, setYear] = useState(initialYear);
+  const [scope, setScope] = useState<MetricScope>(initialScope);
   const [label, setLabel] = useState(periodLabel);
   const [data, setData] = useState(initialData);
   const [isLoading, startTransition] = useTransition();
   const now = new Date();
   const years = Array.from({ length: 4 }, (_, i) => now.getFullYear() - 2 + i);
 
-  function loadPeriod(m: number, y: number) {
+  function loadPeriod(m: number, y: number, s: MetricScope) {
     startTransition(async () => {
-      const res = await fetch(`/api/dashboard/${metric}?month=${m}&year=${y}`);
+      const res = await fetch(`/api/dashboard/${metric}?month=${m}&year=${y}&scope=${s}`);
       const json = await res.json();
       if (json.ok) { setData(json.data); setLabel(json.period.label); }
     });
-    router.replace(`/analisis/${metric}?month=${m}&year=${y}`, { scroll: false });
+    router.replace(`/analisis/${metric}?month=${m}&year=${y}&scope=${s}`, { scroll: false });
   }
 
-  function handleMonth(m: number) { setMonth(m); loadPeriod(m, year); }
-  function handleYear(y: number) { setYear(y); loadPeriod(month, y); }
+  function handleMonth(m: number) { setMonth(m); loadPeriod(m, year, scope); }
+  function handleYear(y: number) { setYear(y); loadPeriod(month, y, scope); }
+  function handleScope(s: MetricScope) { setScope(s); loadPeriod(month, year, s); }
   function setQuick(mOffset: number) {
     const d = new Date(now.getFullYear(), now.getMonth() - mOffset, 1);
     const m = d.getMonth() + 1;
     const y = d.getFullYear();
     setMonth(m);
     setYear(y);
-    loadPeriod(m, y);
+    setScope("month");
+    loadPeriod(m, y, "month");
   }
 
   return (
@@ -69,7 +80,7 @@ export function MetricDetailClient({ metric, title, subtitle, initialMonth, init
           className="inline-flex items-center gap-1.5 text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] mb-3 transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
-          Volver al Inicio
+          Volver a Análisis
         </Link>
         <h1 className="text-2xl font-bold">{title}</h1>
         <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">{subtitle}</p>
@@ -80,36 +91,61 @@ export function MetricDetailClient({ metric, title, subtitle, initialMonth, init
         <CardContent className="pt-4 pb-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <select
-                  value={month}
-                  onChange={(e) => handleMonth(Number(e.target.value))}
-                  className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2.5 py-1.5 text-sm font-medium"
-                >
-                  {MONTHS.map((name, i) => <option key={i + 1} value={i + 1}>{name}</option>)}
-                </select>
-                <select
-                  value={year}
-                  onChange={(e) => handleYear(Number(e.target.value))}
-                  className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2.5 py-1.5 text-sm font-medium"
-                >
-                  {years.map((y) => <option key={y} value={y}>{y}</option>)}
-                </select>
-                <span className="hidden h-6 w-px bg-[hsl(var(--border))] sm:block" />
-                {[
-                  { label: "Este mes", offset: 0 },
-                  { label: "Mes anterior", offset: 1 },
-                  { label: "Hace 3 meses", offset: 3 },
-                  { label: "Hace 6 meses", offset: 6 },
-                ].map(({ label: quickLabel, offset }) => (
+              {/* Alcance: mes / año / todo */}
+              <div className="inline-flex rounded-lg border p-0.5">
+                {SCOPES.map((s) => (
                   <button
-                    key={offset}
-                    onClick={() => setQuick(offset)}
-                    className="rounded-full border px-2.5 py-0.5 text-xs hover:bg-[hsl(var(--accent))] transition-colors"
+                    key={s.value}
+                    onClick={() => handleScope(s.value)}
+                    className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                      scope === s.value
+                        ? "bg-blue-600 text-white"
+                        : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--accent))]"
+                    }`}
                   >
-                    {quickLabel}
+                    {s.label}
                   </button>
                 ))}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                {scope === "month" && (
+                  <select
+                    value={month}
+                    onChange={(e) => handleMonth(Number(e.target.value))}
+                    className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2.5 py-1.5 text-sm font-medium"
+                  >
+                    {MONTHS.map((name, i) => <option key={i + 1} value={i + 1}>{name}</option>)}
+                  </select>
+                )}
+                {scope !== "all" && (
+                  <select
+                    value={year}
+                    onChange={(e) => handleYear(Number(e.target.value))}
+                    className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2.5 py-1.5 text-sm font-medium"
+                  >
+                    {years.map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                )}
+                {scope === "month" && (
+                  <>
+                    <span className="hidden h-6 w-px bg-[hsl(var(--border))] sm:block" />
+                    {[
+                      { label: "Este mes", offset: 0 },
+                      { label: "Mes anterior", offset: 1 },
+                      { label: "Hace 3 meses", offset: 3 },
+                      { label: "Hace 6 meses", offset: 6 },
+                    ].map(({ label: quickLabel, offset }) => (
+                      <button
+                        key={offset}
+                        onClick={() => setQuick(offset)}
+                        className="rounded-full border px-2.5 py-0.5 text-xs hover:bg-[hsl(var(--accent))] transition-colors"
+                      >
+                        {quickLabel}
+                      </button>
+                    ))}
+                  </>
+                )}
                 {isLoading && <RefreshCw className="h-4 w-4 animate-spin text-[hsl(var(--muted-foreground))]" />}
               </div>
               <span className="block text-sm font-semibold">{label}</span>
@@ -125,12 +161,12 @@ export function MetricDetailClient({ metric, title, subtitle, initialMonth, init
       </Card>
 
       {/* ── Contenido por métrica ── */}
-      {metric === "capital-entregado"  && <CapitalEntregadoView  data={data as CapitalEntregadoData}  month={month} year={year} />}
-      {metric === "total-a-cobrar"     && <TotalACobrarView      data={data as TotalACobrarData}      month={month} year={year} />}
-      {metric === "cobrado"            && <CobradoView           data={data as CobradoData}           month={month} year={year} />}
-      {metric === "falta-cobrar"       && <FaltaCobrarView       data={data as FaltaCobrarData}       month={month} year={year} />}
-      {metric === "ganancia-estimada"  && <GananciaEstimadaView  data={data as GananciaEstimadaData}  month={month} year={year} />}
-      {metric === "ganancia-pendiente" && <GananciaPendienteView data={data as GananciaPendienteData} month={month} year={year} />}
+      {metric === "capital-entregado"  && <CapitalEntregadoView  data={data as CapitalEntregadoData}  />}
+      {metric === "total-a-cobrar"     && <TotalACobrarView      data={data as TotalACobrarData}      />}
+      {metric === "cobrado"            && <CobradoView           data={data as CobradoData}           />}
+      {metric === "falta-cobrar"       && <FaltaCobrarView       data={data as FaltaCobrarData}       />}
+      {metric === "ganancia-estimada"  && <GananciaEstimadaView  data={data as GananciaEstimadaData}  />}
+      {metric === "ganancia-pendiente" && <GananciaPendienteView data={data as GananciaPendienteData} />}
     </div>
   );
 }
@@ -213,7 +249,7 @@ function ByTypeChart({ items }: { items: { label: string; amount: number; count:
 
 // ─── Vista 1: Capital entregado ───────────────────────────────────────────────
 
-function CapitalEntregadoView({ data, month, year }: { data: CapitalEntregadoData; month: number; year: number }) {
+function CapitalEntregadoView({ data }: { data: CapitalEntregadoData }) {
   if (!data || data.benefitsCount === 0) {
     return <EmptyState message="No hay beneficios otorgados en este período." />;
   }
@@ -277,7 +313,7 @@ function CapitalEntregadoView({ data, month, year }: { data: CapitalEntregadoDat
 
 // ─── Vista 2: Total a cobrar ──────────────────────────────────────────────────
 
-function TotalACobrarView({ data, month, year }: { data: TotalACobrarData; month: number; year: number }) {
+function TotalACobrarView({ data }: { data: TotalACobrarData }) {
   if (!data || data.installmentsCount === 0) {
     return <EmptyState message="No hay cuotas generadas en este período." />;
   }
@@ -331,7 +367,7 @@ function TotalACobrarView({ data, month, year }: { data: TotalACobrarData; month
 
 // ─── Vista 3: Cobrado hasta ahora ─────────────────────────────────────────────
 
-function CobradoView({ data, month, year }: { data: CobradoData; month: number; year: number }) {
+function CobradoView({ data }: { data: CobradoData }) {
   if (!data || data.installmentsCount === 0) {
     return <EmptyState message="No hay cuotas cobradas en este período." />;
   }
@@ -383,7 +419,7 @@ function CobradoView({ data, month, year }: { data: CobradoData; month: number; 
 
 // ─── Vista 4: Falta cobrar ────────────────────────────────────────────────────
 
-function FaltaCobrarView({ data, month, year }: { data: FaltaCobrarData; month: number; year: number }) {
+function FaltaCobrarView({ data }: { data: FaltaCobrarData }) {
   const [filter, setFilter] = useState<"all" | "pending" | "overdue">("all");
   if (!data || data.pendingCount === 0) {
     return <EmptyState message="No hay cuotas pendientes en este período." />;
@@ -488,16 +524,16 @@ function FaltaCobrarView({ data, month, year }: { data: FaltaCobrarData; month: 
 
 // ─── Vista 5: Ganancia estimada ───────────────────────────────────────────────
 
-function GananciaEstimadaView({ data, month, year }: { data: GananciaEstimadaData; month: number; year: number }) {
+function GananciaEstimadaView({ data }: { data: GananciaEstimadaData }) {
   if (!data || data.benefitsCount === 0) {
     return <EmptyState message="No hay interés registrado en este período." />;
   }
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <SummaryCard label="Interés total" value={formatCurrencyARS(data.totalProfit)} accent="orange" />
-        <SummaryCard label="Capital entregado" value={formatCurrencyARS(data.totalCapital)} accent="blue" />
-        <SummaryCard label="Total a devolver" value={formatCurrencyARS(data.totalRepayment)} />
+        <SummaryCard label="Ganancia total" value={formatCurrencyARS(data.totalUnionProfit)} sub="intereses + comercios" accent="orange" />
+        <SummaryCard label="Intereses" value={formatCurrencyARS(data.totalProfit)} accent="orange" />
+        <SummaryCard label="Retención a comercios" value={formatCurrencyARS(data.totalRetention)} accent="green" />
         <SummaryCard label="Tasa promedio" value={`${data.avgRate.toFixed(2)}%`} sub="interés promedio" accent="orange" />
       </div>
 
@@ -506,15 +542,17 @@ function GananciaEstimadaView({ data, month, year }: { data: GananciaEstimadaDat
         <CardContent className="pt-4 pb-4">
           <p className="text-sm font-medium">¿Cómo se calcula?</p>
           <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-            Interés = Total a devolver − Capital entregado.
-            Es el interés aplicado sobre cada beneficio otorgado.
+            El interés es lo que el afiliado devuelve por encima del capital
+            (<SensitiveValue value={formatCurrencyARS(data.totalRepayment)} /> a devolver −{" "}
+            <SensitiveValue value={formatCurrencyARS(data.totalCapital)} /> de capital). La retención es el
+            porcentaje que el sindicato le descuenta al comercio adherido. Sumados forman la ganancia total.
           </p>
           <div className="mt-3 flex flex-wrap gap-4 text-sm">
-            <span><span className="font-semibold"><SensitiveValue value={formatCurrencyARS(data.totalRepayment)} /></span> <span className="text-[hsl(var(--muted-foreground))]">a devolver</span></span>
-            <span className="text-[hsl(var(--muted-foreground))]">−</span>
-            <span><span className="font-semibold"><SensitiveValue value={formatCurrencyARS(data.totalCapital)} /></span> <span className="text-[hsl(var(--muted-foreground))]">capital</span></span>
+            <span><span className="font-semibold text-orange-600"><SensitiveValue value={formatCurrencyARS(data.totalProfit)} /></span> <span className="text-[hsl(var(--muted-foreground))]">intereses</span></span>
+            <span className="text-[hsl(var(--muted-foreground))]">+</span>
+            <span><span className="font-semibold text-green-700"><SensitiveValue value={formatCurrencyARS(data.totalRetention)} /></span> <span className="text-[hsl(var(--muted-foreground))]">comercios</span></span>
             <span className="text-[hsl(var(--muted-foreground))]">=</span>
-            <span className="font-bold text-orange-600"><SensitiveValue value={formatCurrencyARS(data.totalProfit)} /> de interés</span>
+            <span className="font-bold text-orange-600"><SensitiveValue value={formatCurrencyARS(data.totalUnionProfit)} /> de ganancia</span>
           </div>
         </CardContent>
       </Card>
@@ -566,7 +604,7 @@ function GananciaEstimadaView({ data, month, year }: { data: GananciaEstimadaDat
 
 // ─── Vista 6: Ganancia pendiente ──────────────────────────────────────────────
 
-function GananciaPendienteView({ data, month, year }: { data: GananciaPendienteData; month: number; year: number }) {
+function GananciaPendienteView({ data }: { data: GananciaPendienteData }) {
   if (!data || data.totalEstimatedInterest === 0) {
     return <EmptyState message="No hay interés por cobrar en este período." />;
   }

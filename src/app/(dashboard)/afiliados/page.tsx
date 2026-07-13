@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Suspense } from "react";
-import { AlertTriangle, Filter, Gift, Plus, Users } from "lucide-react";
+import { AlertTriangle, FileUp, Filter, Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AffiliateSearch } from "@/components/affiliates/affiliate-search";
@@ -83,6 +83,12 @@ export default async function AffiliatesPage({ searchParams }: PageProps) {
         </div>
         <div className="flex gap-2 shrink-0">
           <Button variant="outline" asChild>
+            <Link href="/afiliados/importar">
+              <FileUp className="h-4 w-4" />
+              Importar Excel
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
             <Link href="/afiliados/explorar">
               <Filter className="h-4 w-4" />
               Explorar y exportar
@@ -97,19 +103,13 @@ export default async function AffiliatesPage({ searchParams }: PageProps) {
         </div>
       </div>
 
-      {/* Resumen simple del padrón (sin datos financieros) */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {/* Resumen simple del padrón (solo datos del afiliado) */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <PadronCard
           icon={<Users className="h-5 w-5 text-blue-600" />}
           title="Total de afiliados"
           value={String(summary.total)}
           detail={`${summary.active} activos · ${summary.inactive} inactivos`}
-        />
-        <PadronCard
-          icon={<Gift className="h-5 w-5 text-purple-600" />}
-          title="Con beneficios activos"
-          value={String(summary.withActiveBenefit)}
-          detail="Se gestionan desde Beneficios"
         />
         <PadronCard
           icon={<AlertTriangle className="h-5 w-5 text-amber-600" />}

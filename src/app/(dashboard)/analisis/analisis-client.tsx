@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   AlertTriangle,
+  ArrowRight,
   Award,
   BarChart3,
-  Briefcase,
   CalendarClock,
   ChevronRight,
   DollarSign,
@@ -15,15 +15,11 @@ import {
   FileText,
   Gauge,
   Gift,
-  Landmark,
   Minus,
   PieChart,
   RefreshCw,
-  Store,
   TrendingDown,
   TrendingUp,
-  UserPlus,
-  Users,
   WalletCards,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +35,10 @@ import type {
   DashboardAnalytics,
   AnalysisInsights,
 } from "@/lib/services/dashboard.service";
+
+// Análisis: pensado para responder de un vistazo tres preguntas
+//   1. ¿Cuánto ganó el sindicato?  2. ¿Cuánto le deben?  3. ¿Cuánto ya cobró?
+// El resto (mes, evolución, seguimiento) viene después, en ese orden.
 
 interface AnalysisClientProps {
   initialMonth: number;
@@ -105,11 +105,7 @@ export function AnalysisClient({
     setMonth(m); setYear(y); loadPeriod(m, y);
   }
 
-  const collectedPct = globals.totalToCollect > 0
-    ? Math.round((globals.totalCollected / globals.totalToCollect) * 100)
-    : 0;
-
-  // Mes anterior (para variación)
+  // Mes anterior (para las flechas de variación)
   const prevDate = new Date(year, month - 2, 1);
   const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
   const prev = history.find((r) => r.month === prevKey);
@@ -124,7 +120,7 @@ export function AnalysisClient({
             Análisis
           </h1>
           <p className="mt-0.5 text-sm text-[hsl(var(--muted-foreground))]">
-            Métricas, evolución y reportes para entender la situación financiera del sindicato.
+            La situación financiera del sindicato, de un vistazo.
           </p>
         </div>
         {isLoading && (
@@ -134,42 +130,34 @@ export function AnalysisClient({
         )}
       </div>
 
-      {/* ════════════ ESTADO GENERAL (histórico) ════════════ */}
-      <section className="space-y-4">
-        <SectionTitle
-          title="Estado general de la cartera"
-          subtitle="Foto completa al día de hoy. No depende del mes seleccionado."
-        />
+      {/* ════════════ LA FOTO DE HOY ════════════ */}
+      <HeroFinanciero globals={globals} />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <ClickCard href="/cobranzas?status=overdue" icon={<AlertTriangle className="h-5 w-5 text-red-600" />} iconBg="bg-red-50"
-            label="En mora (vencido)" value={formatCurrencyARS(globals.totalOverdue)}
-            sub={`${globals.overdueInstallmentsCount} cuotas · ${globals.affectedOverdueAffiliates} afiliados`} alert={globals.overdueInstallmentsCount > 0} />
-          <ClickCard href={`/analisis/total-a-cobrar?${p}`} icon={<WalletCards className="h-5 w-5 text-indigo-600" />} iconBg="bg-indigo-50"
-            label="Total a cobrar" value={formatCurrencyARS(globals.totalToCollect)} sub={`${formatCurrencyARS(globals.totalCollected)} ya cobrado`} />
-          <GaugeCard label="Cumplimiento de cobro" percent={globals.collectionComplianceRate} sub="Cuotas cobradas sobre el total" href="/cobranzas" />
-          <ClickCard href={`/analisis/capital-entregado?${p}`} icon={<DollarSign className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50"
-            label="Total financiado (histórico)" value={formatCurrencyARS(globals.totalCapitalDelivered)} sub={`${globals.activeBenefits} beneficios activos`} />
-        </div>
+      {/* Alerta de mora (solo si hay) */}
+      {globals.overdueInstallmentsCount > 0 && (
+        <Link
+          href="/cobranzas?status=overdue"
+          className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 transition-colors hover:bg-red-100/70"
+        >
+          <span className="flex items-center gap-2.5 text-sm font-medium text-red-800">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-red-600" />
+            <span>
+              <SensitiveValue value={formatCurrencyARS(globals.totalOverdue)} /> vencidos en{" "}
+              {globals.overdueInstallmentsCount} cuota{globals.overdueInstallmentsCount !== 1 ? "s" : ""} de{" "}
+              {globals.affectedOverdueAffiliates} afiliado{globals.affectedOverdueAffiliates !== 1 ? "s" : ""} — revisá la cobranza
+            </span>
+          </span>
+          <ArrowRight className="h-4 w-4 shrink-0 text-red-600" />
+        </Link>
+      )}
 
-        <CollectionHealth globals={globals} collectedPct={collectedPct} />
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <ClickCard href={`/analisis/ganancia-estimada?${p}`} icon={<TrendingUp className="h-5 w-5 text-orange-600" />} iconBg="bg-orange-50"
-            label="Interés total generado" value={formatCurrencyARS(globals.totalInterestGenerated)} sub={`${formatCurrencyARS(globals.totalInterestCollected)} ya cobrado`} />
-          <ClickCard href="/beneficios?type=supermercado" icon={<Landmark className="h-5 w-5 text-emerald-700" />} iconBg="bg-emerald-50"
-            label="Ganancia por retención" value={formatCurrencyARS(globals.commerceRetentionTotal)} sub={`${globals.averageCommerceRetentionRate.toFixed(1)}% promedio`} />
-          <ClickCard href="/beneficios?status=active" icon={<Gift className="h-5 w-5 text-purple-600" />} iconBg="bg-purple-50"
-            label="Beneficios activos" value={String(globals.activeBenefits)} sub={`${globals.finishedBenefits} finalizados`} />
-          <ClickCard href="/beneficios?type=supermercado" icon={<Store className="h-5 w-5 text-emerald-700" />} iconBg="bg-emerald-50"
-            label="Comercios adheridos" value={String(globals.commercesCount)} sub={globals.topCommerce ? `Líder: ${globals.topCommerce}` : undefined} />
-        </div>
-      </section>
-
-      {/* ════════════ ANÁLISIS DEL MES ════════════ */}
+      {/* ════════════ EL MES ELEGIDO ════════════ */}
       <section className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <SectionTitle title="Análisis del mes" subtitle={`Período seleccionado: ${label}. Las flechas comparan con el mes anterior.`} />
+          <SectionTitle
+            title={`El mes: ${label}`}
+            subtitle="Solo los beneficios otorgados en este mes. Las flechas comparan con el mes anterior."
+          />
           <div className="flex flex-wrap items-center gap-2 print:hidden">
             <select value={month} onChange={(e) => handleMonth(Number(e.target.value))} aria-label="Mes"
               className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2.5 py-1.5 text-sm font-medium">
@@ -199,88 +187,61 @@ export function AnalysisClient({
           ))}
         </div>
 
-        {/* KPIs del mes (con variación) */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <ClickCard href={`/analisis/capital-entregado?${p}`} icon={<DollarSign className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50"
-            label="Beneficios otorgados (monto)" value={formatCurrencyARS(summary.capitalDelivered)}
-            sub={`${summary.benefitsCount} beneficio${summary.benefitsCount !== 1 ? "s" : ""} en ${label}`}
+            label="Otorgado en el mes" value={formatCurrencyARS(summary.capitalDelivered)}
+            sub={`${summary.benefitsCount} beneficio${summary.benefitsCount !== 1 ? "s" : ""}`}
             delta={pctDelta(summary.capitalDelivered, prev?.capitalDelivered)} />
           <ClickCard href={`/analisis/cobrado?${p}`} icon={<WalletCards className="h-5 w-5 text-green-600" />} iconBg="bg-green-50"
-            label="Cobrado (beneficios del mes)" value={formatCurrencyARS(summary.paidAmount)}
+            label="Cobrado del mes" value={formatCurrencyARS(summary.paidAmount)}
             sub={`${summary.paidInstallmentsCount} cuota${summary.paidInstallmentsCount !== 1 ? "s" : ""}`}
             delta={pctDelta(summary.paidAmount, prev?.paidAmount)} />
-          <ClickCard href={`/analisis/falta-cobrar?${p}`} icon={<CalendarClock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50"
-            label="Pendiente de cobro" value={formatCurrencyARS(summary.pendingToCollect)} sub={`${summary.pendingInstallmentsCount} cuotas pendientes`}
-            alert={summary.overdueInstallmentsCount > 0} />
           <ClickCard href={`/analisis/ganancia-estimada?${p}`} icon={<TrendingUp className="h-5 w-5 text-orange-600" />} iconBg="bg-orange-50"
-            label="Interés del mes" value={formatCurrencyARS(summary.estimatedProfit)} sub={`${formatCurrencyARS(summary.collectedProfit)} cobrado`}
-            delta={pctDelta(summary.estimatedProfit, prev?.estimatedProfit)} />
-          <ClickCard href={`/beneficios?type=supermercado`} icon={<Landmark className="h-5 w-5 text-emerald-700" />} iconBg="bg-emerald-50"
-            label="Ganancia del sindicato" value={formatCurrencyARS(summary.unionProfit)} sub={`${formatCurrencyARS(summary.commerceRetentionProfit)} por retención`}
+            label="Ganancia del mes" value={formatCurrencyARS(summary.unionProfit)}
+            sub={`Intereses ${formatCurrencyARS(summary.estimatedProfit)} · Comercios ${formatCurrencyARS(summary.commerceRetentionProfit)}`}
             delta={pctDelta(summary.unionProfit, prev?.unionProfit)} />
-          <ClickCard href="/afiliados" icon={<UserPlus className="h-5 w-5 text-cyan-700" />} iconBg="bg-cyan-50"
-            label="Nuevos afiliados" value={String(summary.newAffiliatesCount)} sub={label} />
+          <ClickCard href={`/analisis/falta-cobrar?${p}`} icon={<CalendarClock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50"
+            label="Queda por cobrar" value={formatCurrencyARS(summary.pendingToCollect)}
+            sub={`${summary.pendingInstallmentsCount} cuota${summary.pendingInstallmentsCount !== 1 ? "s" : ""} pendiente${summary.pendingInstallmentsCount !== 1 ? "s" : ""}`}
+            alert={summary.overdueInstallmentsCount > 0} />
         </div>
 
-        {/* Acumulados */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <MiniStat label="Ganancia este mes" value={formatCurrencyARS(summary.amountRetainedThisMonth)} />
-          <MiniStat label="Ganancia en el año" value={formatCurrencyARS(summary.amountRetainedThisYear)} />
-          <MiniStat label="Beneficios este mes" value={String(summary.benefitsCount)} />
-          <MiniStat label="Beneficios en el año" value={String(summary.benefitsThisYear)} />
-        </div>
+        <p className="text-sm text-[hsl(var(--muted-foreground))]">
+          En {year} van{" "}
+          <span className="font-semibold text-[hsl(var(--foreground))]">
+            <SensitiveValue value={formatCurrencyARS(summary.amountRetainedThisYear)} />
+          </span>{" "}
+          de ganancia con {summary.benefitsThisYear} beneficio{summary.benefitsThisYear !== 1 ? "s" : ""} otorgado{summary.benefitsThisYear !== 1 ? "s" : ""}.
+        </p>
+      </section>
 
-        {/* Gráficos — fila 1 */}
+      {/* ════════════ EVOLUCIÓN Y ORIGEN ════════════ */}
+      <section className="space-y-4">
+        <SectionTitle title="Evolución y origen de la ganancia" subtitle="Últimos 6 meses y de dónde sale la plata." />
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-          <DonutCard title="¿Qué se otorga más?" icon={<PieChart className="h-4 w-4 text-blue-600" />}
-            rows={analytics.benefitsByType.map((r) => ({ label: r.label, value: r.amount, caption: formatCurrencyARS(r.amount) }))}
-            emptyText="Sin beneficios en el período." />
-          <DonutCard title="Afiliados por sexo" icon={<Users className="h-4 w-4 text-purple-600" />}
-            rows={analytics.affiliatesBySex.map((r) => ({ label: r.label, value: r.value, caption: String(r.value) }))}
-            palette={["#2563eb", "#db2777", "#0d9488", "#64748b"]} emptyText="Sin datos de sexo cargados." />
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base"><BarChart3 className="h-4 w-4 text-teal-600" /> Evolución (6 meses)</CardTitle>
             </CardHeader>
             <CardContent><MiniAreaChart rows={historyRows(history)} /></CardContent>
           </Card>
-        </div>
-
-        {/* Gráficos — fila 2 */}
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-          <BarsCard title="Afiliados por situación" icon={<Briefcase className="h-4 w-4 text-slate-600" />} rows={analytics.affiliatesByEmploymentType} />
-          <BarsCard title="Beneficios más usados" icon={<Gift className="h-4 w-4 text-purple-600" />} rows={analytics.benefitsByType.map((r) => ({ label: r.label, value: r.value }))} />
+          <DonutCard title="¿Qué se otorga más?" icon={<PieChart className="h-4 w-4 text-blue-600" />}
+            rows={analytics.benefitsByType.map((r) => ({ label: r.label, value: r.amount, caption: formatCurrencyARS(r.amount) }))}
+            emptyText="Sin beneficios en el período." />
           <CommerceRankingCard title="Top comercios del período" rows={analytics.topCommerces} />
         </div>
-      </section>
 
-      {/* ════════════ SEGUIMIENTO ════════════ */}
-      <section className="space-y-4">
-        <SectionTitle
-          title="Seguimiento de afiliados y beneficios"
-          subtitle="Situaciones a mirar de cerca: límites de descuento y beneficios por terminar."
-        />
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-          <NearLimitCard rows={insights.nearLimitAffiliates} />
-          <EndingSoonCard rows={insights.endingSoonBenefits} />
-          <TopUsageCard rows={insights.topUsageAffiliates} />
-        </div>
-      </section>
-
-      {/* ── Historial mensual ── */}
-      <section>
-        <SectionTitle title="Historial mensual" subtitle="Últimos 6 meses. Clic en una fila para verla en el análisis." />
-        <Card className="mt-3">
+        {/* Historial mensual */}
+        <Card>
           <CardContent className="overflow-x-auto p-0">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-xs uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
                   <th className="px-4 py-2.5 text-left font-semibold">Mes</th>
                   <th className="px-3 py-2.5 text-right font-semibold">Beneficios</th>
-                  <th className="px-3 py-2.5 text-right font-semibold">Monto otorgado</th>
-                  <th className="hidden px-3 py-2.5 text-right font-semibold md:table-cell">Interés total</th>
-                  <th className="hidden px-3 py-2.5 text-right font-semibold md:table-cell">Interés cobrado</th>
-                  <th className="hidden px-3 py-2.5 text-right font-semibold lg:table-cell">Interés por cobrar</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Otorgado</th>
+                  <th className="hidden px-3 py-2.5 text-right font-semibold md:table-cell">Cobrado</th>
+                  <th className="hidden px-3 py-2.5 text-right font-semibold md:table-cell">Ganancia</th>
                   <th className="px-3 py-2.5 text-right font-semibold">Falta cobrar</th>
                 </tr>
               </thead>
@@ -298,9 +259,8 @@ export function AnalysisClient({
                       </td>
                       <td className="px-3 py-2.5 text-right text-[hsl(var(--muted-foreground))]">{row.benefitsCount}</td>
                       <td className="px-3 py-2.5 text-right font-medium"><SensitiveValue value={formatCurrencyARS(row.capitalDelivered)} /></td>
-                      <td className="hidden px-3 py-2.5 text-right text-orange-600 md:table-cell"><SensitiveValue value={formatCurrencyARS(row.estimatedProfit)} /></td>
-                      <td className="hidden px-3 py-2.5 text-right text-green-700 md:table-cell"><SensitiveValue value={formatCurrencyARS(row.collectedProfit)} /></td>
-                      <td className="hidden px-3 py-2.5 text-right text-yellow-700 lg:table-cell"><SensitiveValue value={formatCurrencyARS(row.pendingProfit)} /></td>
+                      <td className="hidden px-3 py-2.5 text-right text-green-700 md:table-cell"><SensitiveValue value={formatCurrencyARS(row.paidAmount)} /></td>
+                      <td className="hidden px-3 py-2.5 text-right text-orange-600 md:table-cell"><SensitiveValue value={formatCurrencyARS(row.unionProfit)} /></td>
                       <td className="px-3 py-2.5 text-right font-semibold"><SensitiveValue value={formatCurrencyARS(row.pendingToCollect)} /></td>
                     </tr>
                   );
@@ -309,6 +269,19 @@ export function AnalysisClient({
             </table>
           </CardContent>
         </Card>
+      </section>
+
+      {/* ════════════ PARA MIRAR DE CERCA ════════════ */}
+      <section className="space-y-4">
+        <SectionTitle
+          title="Para mirar de cerca"
+          subtitle="Afiliados cerca de su límite, beneficios por terminar y quiénes más usan el sistema."
+        />
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <NearLimitCard rows={insights.nearLimitAffiliates} />
+          <EndingSoonCard rows={insights.endingSoonBenefits} />
+          <TopUsageCard rows={insights.topUsageAffiliates} />
+        </div>
       </section>
 
       {/* ── Exportes ── */}
@@ -331,6 +304,174 @@ export function AnalysisClient({
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// ─── La foto de hoy ───────────────────────────────────────────────────────────
+// Un solo bloque que cuenta la historia de la plata en orden natural:
+// prestó → va ganando → ya cobró → le deben. Toda la cartera, no depende
+// del mes elegido.
+
+function HeroFinanciero({ globals }: { globals: DashboardGlobals }) {
+  const gananciaTotal = globals.totalInterestGenerated + globals.commerceRetentionTotal;
+  const gananciaEnMano = globals.totalInterestCollected + globals.commerceRetentionTotal;
+
+  const collectedPct = globals.totalToCollect > 0
+    ? (globals.totalCollected / globals.totalToCollect) * 100
+    : 0;
+  const overduePct = globals.totalToCollect > 0
+    ? (globals.totalOverdue / globals.totalToCollect) * 100
+    : 0;
+  const pendingPct = Math.max(0, 100 - collectedPct - overduePct);
+
+  return (
+    <Card className="border-2">
+      <CardContent className="space-y-5 p-5 sm:p-6">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold">Resumen financiero general</h2>
+          <span className="text-xs text-[hsl(var(--muted-foreground))]">Toda la cartera, al día de hoy</span>
+        </div>
+
+        {/* La historia en una frase */}
+        <p className="rounded-lg bg-[hsl(var(--muted))]/40 px-4 py-3 text-sm leading-relaxed">
+          El sindicato prestó{" "}
+          <strong><SensitiveValue value={formatCurrencyARS(globals.totalCapitalDelivered)} /></strong>{" "}
+          y va a recuperar{" "}
+          <strong><SensitiveValue value={formatCurrencyARS(globals.totalToCollect)} /></strong>.
+          Ya cobró{" "}
+          <strong className="text-green-700"><SensitiveValue value={formatCurrencyARS(globals.totalCollected)} /></strong>{" "}
+          y le deben{" "}
+          <strong className="text-amber-700"><SensitiveValue value={formatCurrencyARS(globals.totalPending)} /></strong>.
+          Su ganancia es{" "}
+          <strong className="text-orange-700"><SensitiveValue value={formatCurrencyARS(gananciaTotal)} /></strong>
+          {gananciaTotal > 0 && (
+            <>
+              , de la cual{" "}
+              <strong><SensitiveValue value={formatCurrencyARS(gananciaEnMano)} /></strong> ya está en mano
+            </>
+          )}.
+        </p>
+
+        {/* Los 4 números, en orden: prestó → gana → cobró → le deben */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <BigNumber
+            href="/analisis/capital-entregado?scope=all"
+            icon={<DollarSign className="h-5 w-5 text-blue-600" />}
+            label="Prestó"
+            value={formatCurrencyARS(globals.totalCapitalDelivered)}
+            tone="text-blue-700"
+            detail={<>Capital entregado en beneficios ({globals.activeBenefits} activos)</>}
+          />
+          <BigNumber
+            href="/analisis/ganancia-estimada?scope=all"
+            icon={<TrendingUp className="h-5 w-5 text-orange-600" />}
+            label="Va ganando"
+            value={formatCurrencyARS(gananciaTotal)}
+            tone="text-orange-700"
+            highlight
+            detail={
+              <>
+                Intereses <SensitiveValue value={formatCurrencyARS(globals.totalInterestGenerated)} /> + comercios{" "}
+                <SensitiveValue value={formatCurrencyARS(globals.commerceRetentionTotal)} />
+                <br />
+                Ya en mano: <strong><SensitiveValue value={formatCurrencyARS(gananciaEnMano)} /></strong>
+              </>
+            }
+          />
+          <BigNumber
+            href="/analisis/cobrado?scope=all"
+            icon={<WalletCards className="h-5 w-5 text-green-600" />}
+            label="Ya cobró"
+            value={formatCurrencyARS(globals.totalCollected)}
+            tone="text-green-700"
+            detail={
+              <>
+                de <SensitiveValue value={formatCurrencyARS(globals.totalToCollect)} /> a recuperar (capital + interés)
+              </>
+            }
+          />
+          <BigNumber
+            href="/analisis/falta-cobrar?scope=all"
+            icon={<CalendarClock className="h-5 w-5 text-amber-600" />}
+            label="Le deben"
+            value={formatCurrencyARS(globals.totalPending)}
+            tone="text-amber-700"
+            detail={
+              globals.totalOverdue > 0 ? (
+                <span className="font-medium text-red-700">
+                  Incluye <SensitiveValue value={formatCurrencyARS(globals.totalOverdue)} /> vencido
+                </span>
+              ) : (
+                <>Sin cuotas vencidas · {globals.pendingInstallmentsCount} cuotas por vencer</>
+              )
+            }
+          />
+        </div>
+
+        {/* Una sola barra de cobranza */}
+        <div className="space-y-2">
+          <div className="flex h-3 overflow-hidden rounded-full bg-[hsl(var(--muted))]">
+            <div className="bg-green-500" style={{ width: `${collectedPct}%` }} />
+            <div className="bg-yellow-400" style={{ width: `${pendingPct}%` }} />
+            <div className="bg-red-500" style={{ width: `${overduePct}%` }} />
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[hsl(var(--muted-foreground))]">
+            <div className="flex flex-wrap gap-4">
+              <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-green-500" />Cobrado {Math.round(collectedPct)}%</span>
+              <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />Por vencer {Math.round(pendingPct)}%</span>
+              <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-500" />Vencido {Math.round(overduePct)}%</span>
+            </div>
+            <span className="inline-flex items-center gap-1">
+              <Gauge className="h-3.5 w-3.5" />
+              Cumplimiento de cobro: <strong className="text-[hsl(var(--foreground))]">{globals.collectionComplianceRate}%</strong>
+            </span>
+          </div>
+        </div>
+
+        {/* Contexto mínimo */}
+        <div className="flex flex-wrap gap-x-6 gap-y-1 border-t pt-3 text-xs text-[hsl(var(--muted-foreground))]">
+          <span>
+            <Gift className="mr-1 inline h-3.5 w-3.5" />
+            {globals.activeBenefits} beneficios activos · {globals.finishedBenefits} finalizados
+          </span>
+          <span>
+            {globals.commercesCount} comercios adheridos
+            {globals.averageCommerceRetentionRate > 0 ? ` · retención promedio ${globals.averageCommerceRetentionRate.toFixed(1)}%` : ""}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function BigNumber({ href, icon, label, value, tone, detail, highlight = false }: {
+  href: string;
+  icon: ReactNode;
+  label: string;
+  value: string;
+  tone: string;
+  detail: ReactNode;
+  highlight?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`group block rounded-xl border p-4 transition-all hover:shadow-md ${
+        highlight
+          ? "border-orange-200 bg-orange-50/70 hover:border-orange-300"
+          : "bg-[hsl(var(--card))] hover:border-[hsl(var(--primary))]/30"
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        {icon}
+        <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">{label}</p>
+        <ChevronRight className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))] opacity-0 transition-opacity group-hover:opacity-100" />
+      </div>
+      <p className={`mt-1.5 text-2xl font-bold tracking-tight xl:text-3xl ${tone}`}>
+        <SensitiveValue value={value} />
+      </p>
+      <p className="mt-1 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">{detail}</p>
+    </Link>
   );
 }
 
@@ -459,51 +600,6 @@ function historyRows(history: MonthlyHistoryRow[]) {
   }));
 }
 
-function CollectionHealth({ globals, collectedPct }: { globals: DashboardGlobals; collectedPct: number }) {
-  const collected = collectedPct;
-  const overdue = globals.totalToCollect > 0 ? (globals.totalOverdue / globals.totalToCollect) * 100 : 0;
-  const pending = Math.max(0, 100 - collected - overdue);
-
-  return (
-    <Card>
-      <CardContent className="space-y-4 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-base font-semibold">¿Cómo viene la cobranza?</h3>
-            <p className="text-sm text-[hsl(var(--muted-foreground))]">Distribución de toda la cartera: cobrado, pendiente y vencido.</p>
-          </div>
-          <p className="text-sm text-[hsl(var(--muted-foreground))]">
-            Total a cobrar: <span className="font-semibold text-[hsl(var(--foreground))]"><SensitiveValue value={formatCurrencyARS(globals.totalToCollect)} /></span>
-          </p>
-        </div>
-        <div className="flex h-3 overflow-hidden rounded-full bg-[hsl(var(--muted))]">
-          <div className="bg-green-500" style={{ width: `${collected}%` }} title={`Cobrado: ${formatCurrencyARS(globals.totalCollected)}`} />
-          <div className="bg-yellow-400" style={{ width: `${pending}%` }} title={`Pendiente: ${formatCurrencyARS(globals.totalPending)}`} />
-          <div className="bg-red-500" style={{ width: `${overdue}%` }} title={`Vencido: ${formatCurrencyARS(globals.totalOverdue)}`} />
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <HealthLegend label="Cobrado" value={formatCurrencyARS(globals.totalCollected)} percent={Math.round(collected)} tone="green" />
-          <HealthLegend label="Pendiente" value={formatCurrencyARS(globals.totalPending)} percent={Math.round(pending)} tone="yellow" />
-          <HealthLegend label="Vencido" value={formatCurrencyARS(globals.totalOverdue)} percent={Math.round(overdue)} tone="red" />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function HealthLegend({ label, value, percent, tone }: { label: string; value: string; percent: number; tone: "green" | "yellow" | "red" }) {
-  const color = { green: "bg-green-500", yellow: "bg-yellow-400", red: "bg-red-500" }[tone];
-  return (
-    <div className="text-center">
-      <div className="inline-flex items-center gap-2 text-sm text-[hsl(var(--muted-foreground))]">
-        <span className={`h-2.5 w-2.5 rounded-full ${color}`} />{label}
-      </div>
-      <p className="mt-1 font-semibold"><SensitiveValue value={value} /></p>
-      <p className="text-xs text-[hsl(var(--muted-foreground))]">{percent}%</p>
-    </div>
-  );
-}
-
 function DeltaBadge({ delta }: { delta: number | null }) {
   if (delta == null) return null;
   if (delta === 0)
@@ -545,33 +641,6 @@ function ClickCard({ href, icon, iconBg, label, value, sub, alert = false, delta
         {sub && <p className="text-xs text-[hsl(var(--muted-foreground))]">{sub}</p>}
       </div>
     </Link>
-  );
-}
-
-function GaugeCard({ label, percent, sub, href }: { label: string; percent: number; sub?: string; href: string }) {
-  const tone = percent >= 90 ? "text-green-700" : percent >= 70 ? "text-amber-600" : "text-red-600";
-  const bar = percent >= 90 ? "bg-green-500" : percent >= 70 ? "bg-amber-500" : "bg-red-500";
-  return (
-    <Link href={href} className="group block cursor-pointer rounded-xl border bg-[hsl(var(--card))] p-4 transition-all hover:border-[hsl(var(--primary))]/30 hover:shadow-md">
-      <div className="flex items-start justify-between">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100"><Gauge className={`h-5 w-5 ${tone}`} /></div>
-        <span className={`text-2xl font-bold ${tone}`}>{percent}%</span>
-      </div>
-      <p className="mt-3 text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">{label}</p>
-      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-[hsl(var(--muted))]">
-        <div className={`h-full rounded-full ${bar}`} style={{ width: `${Math.min(100, Math.max(0, percent))}%` }} />
-      </div>
-      {sub && <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">{sub}</p>}
-    </Link>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border bg-[hsl(var(--muted))]/30 px-3 py-3">
-      <p className="text-xs text-[hsl(var(--muted-foreground))]">{label}</p>
-      <p className="mt-1 text-base font-bold">{value.trim().startsWith("$") ? <SensitiveValue value={value} /> : value}</p>
-    </div>
   );
 }
 
@@ -621,32 +690,6 @@ function DonutCard({ title, icon, rows, palette = DONUT_PALETTE, emptyText }: {
             );
           })}
         </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function BarsCard({ title, icon, rows }: { title: string; icon?: ReactNode; rows: Array<{ label: string; value: number }> }) {
-  const max = Math.max(...rows.map((r) => r.value), 1);
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base">{icon}{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {rows.length === 0 ? (
-          <p className="text-sm text-[hsl(var(--muted-foreground))]">Sin datos para mostrar.</p>
-        ) : rows.map((row) => (
-          <div key={row.label} className="space-y-1" title={`${row.label}: ${row.value}`}>
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="truncate">{row.label}</span>
-              <span className="font-semibold">{row.value}</span>
-            </div>
-            <div className="h-2 rounded-full bg-[hsl(var(--muted))]">
-              <div className="h-2 rounded-full bg-[hsl(var(--primary))]" style={{ width: `${Math.max(4, (row.value / max) * 100)}%` }} />
-            </div>
-          </div>
-        ))}
       </CardContent>
     </Card>
   );

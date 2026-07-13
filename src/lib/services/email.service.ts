@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { formatDate } from "@/lib/utils/date";
 import { formatCurrencyARS } from "@/lib/utils/currency";
+import type { PadronHome } from "./home.service";
 
 export interface MunicipalityEmailPayload {
   buffer: Buffer;
@@ -17,6 +18,55 @@ export interface EmailResult {
   ok: boolean;
   messageId?: string;
   error?: string;
+}
+
+// ─── Resumen semanal del padrón (sin datos financieros) ──────────────────────
+
+export async function sendWeeklyDigestEmail(
+  to: string,
+  home: PadronHome
+): Promise<EmailResult> {
+  const emailFrom = process.env.EMAIL_FROM ?? "sindicato@resend.dev";
+  if (!process.env.RESEND_API_KEY) {
+    return { ok: false, error: "RESEND_API_KEY no está configurado en variables de entorno." };
+  }
+
+  const birthdaysThisWeek = home.birthdays.filter((b) => b.daysUntil <= 7);
+  const lines: string[] = [
+    "Resumen semanal del sindicato",
+    "",
+    `Padrón: ${home.totalAffiliates} afiliados (${home.activeAffiliates} activos, ${home.inactiveAffiliates} inactivos).`,
+    `Altas de este mes: ${home.newThisMonth}.`,
+    `Documentación pendiente: ${home.docsPending} · faltante: ${home.docsMissing}.`,
+  ];
+
+  if (birthdaysThisWeek.length > 0) {
+    lines.push("", "Cumpleaños de los próximos 7 días:");
+    for (const b of birthdaysThisWeek) {
+      lines.push(`- ${b.fullName} (${formatDate(b.nextDate)})`);
+    }
+  }
+
+  if (home.overdueReminders > 0) {
+    lines.push("", `Recordatorios vencidos sin resolver: ${home.overdueReminders}.`);
+  }
+
+  lines.push("", "Este resumen se genera automáticamente todos los lunes.", "Sistema de Gestión Sindical");
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  try {
+    const { data, error } = await resend.emails.send({
+      from: emailFrom,
+      to,
+      subject: `Resumen semanal del padrón - ${formatDate(new Date().toISOString().slice(0, 10))}`,
+      text: lines.join("\n"),
+    });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, messageId: data?.id };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Error desconocido al enviar email";
+    return { ok: false, error: msg };
+  }
 }
 
 export async function sendMunicipalityExportEmail(

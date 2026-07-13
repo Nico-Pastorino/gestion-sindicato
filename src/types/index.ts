@@ -17,6 +17,14 @@ export type {
   NewSetting,
   ExportLog,
   NewExportLog,
+  AffiliateFile,
+  NewAffiliateFile,
+  FamilyMember,
+  NewFamilyMember,
+  Reminder,
+  NewReminder,
+  Announcement,
+  NewAnnouncement,
 } from "@/lib/db/schema";
 
 export type {
@@ -31,6 +39,9 @@ export type UserRole = "admin" | "operator" | "readonly";
 export type AffiliateStatus = "active" | "inactive";
 export type AffiliateSex = "masculino" | "femenino" | "otro" | "prefiero_no_responder";
 export type EmploymentType = "planta_permanente" | "planta_temporaria" | "jubilado";
+export type InactiveReason = "renuncia" | "jubilacion" | "fallecimiento" | "traslado" | "otro";
+export type AffiliateFileKind = "foto" | "dni" | "ficha_firmada" | "certificado" | "otro";
+export type FamilyRelationship = "conyuge" | "concubino_a" | "hijo_a" | "otro";
 
 export type BenefitType = "ayuda_economica" | "supermercado" | "otro";
 
@@ -43,6 +54,7 @@ export type WhatsappAlertStatus = "pending" | "sent" | "failed" | "skipped";
 export type AuditAction =
   | "affiliate_created"
   | "affiliate_updated"
+  | "affiliate_deleted"
   | "benefit_created"
   | "benefit_updated"
   | "benefit_cancelled"
@@ -56,7 +68,17 @@ export type AuditAction =
   | "user_created"
   | "user_updated"
   | "user_password_reset"
-  | "user_deleted";
+  | "user_deleted"
+  | "affiliates_imported"
+  | "family_member_added"
+  | "family_member_updated"
+  | "family_member_removed"
+  | "affiliate_file_uploaded"
+  | "affiliate_file_deleted"
+  | "settings_updated"
+  | "announcement_created"
+  | "announcement_updated"
+  | "announcement_deleted";
 
 // ─── Vista: affiliate_credit_summary ─────────────────────────────────────────
 
@@ -72,6 +94,7 @@ export interface AffiliateCreditSummary {
   sector?: string | null;
   phone?: string | null;
   email?: string | null;
+  photoUrl?: string | null;
   documentationStatus?: "complete" | "pending" | "missing";
   status: AffiliateStatus;
   /** null si el afiliado todavía no tiene salario cargado */
@@ -84,8 +107,6 @@ export interface AffiliateCreditSummary {
   availableAmount: string | null;
   /** Suma total de todas las cuotas pendientes/vencidas (informativo). */
   totalCommitted?: string;
-  /** Cantidad de beneficios activos (referencia simple para el fichero). */
-  activeBenefitsCount?: number;
 }
 
 // ─── API Response types ───────────────────────────────────────────────────────
