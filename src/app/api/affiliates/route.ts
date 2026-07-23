@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAffiliate, searchAffiliates } from "@/lib/services/affiliates.service";
 import { createAffiliateSchema, affiliateSearchSchema } from "@/lib/validations/affiliate.schema";
 import { requireSession, requireRole, authErrorResponse } from "@/lib/auth/guards";
+import {
+  getPgError,
+  uniqueViolationMessage,
+  uniqueViolationField,
+  checkViolationMessage,
+  PG_UNIQUE_VIOLATION,
+  PG_CHECK_VIOLATION,
+} from "@/lib/utils/db-errors";
 import { ZodError } from "zod";
 
 export async function GET(req: NextRequest) {
@@ -44,13 +52,36 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    if (error instanceof Error) {
-      if (error.message.includes("unique") || error.message.includes("duplicate")) {
-        return NextResponse.json(
-          { error: { code: "DUPLICATE_ERROR", message: "Ya existe un afiliado con ese DNI o legajo" } },
-          { status: 409 }
-        );
-      }
+    // El error de Postgres viene envuelto por Drizzle: hay que leerlo de `cause`.
+    const pgError = getPgError(error);
+    if (pgError?.code === PG_UNIQUE_VIOLATION) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "DUPLICATE_ERROR",
+            message: uniqueViolationMessage(
+              pgError,
+              "Ya existe un afiliado con ese DNI o legajo"
+            ),
+            field: uniqueViolationField(pgError),
+          },
+        },
+        { status: 409 }
+      );
+    }
+    if (pgError?.code === PG_CHECK_VIOLATION) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "VALIDATION_ERROR",
+            message: checkViolationMessage(
+              pgError,
+              "Alguno de los datos cargados tiene un valor no válido"
+            ),
+          },
+        },
+        { status: 400 }
+      );
     }
     console.error("[POST /api/affiliates]", error);
     return NextResponse.json(

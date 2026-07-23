@@ -151,8 +151,16 @@ export function AffiliateForm({ affiliate, areas = [], mode }: AffiliateFormProp
               if (field) fieldErrors[field] = issue.message;
             }
             setErrors(fieldErrors);
+            // Si el rechazo vino de la base no hay `details` por campo: sin este
+            // aviso el formulario se quedaría mudo y parecería que no pasó nada.
+            if (Object.keys(fieldErrors).length === 0) {
+              setServerError(json.error?.message ?? "Revisá los datos cargados.");
+            }
           } else if (json.error?.code === "DUPLICATE_ERROR") {
-            setServerError("Ya existe un afiliado con ese DNI o legajo.");
+            const message = json.error?.message ?? "Ya existe un afiliado con ese DNI o legajo";
+            setServerError(message);
+            // Resaltamos el campo repetido para que se vea dónde está el conflicto.
+            if (json.error?.field) setErrors({ [json.error.field]: message });
           } else {
             setServerError(json.error?.message ?? "Error al guardar");
           }
