@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# copias de conflicto de iCloud Drive
+# El proyecto vive en el Escritorio, que iCloud sincroniza. Ante un conflicto
+# iCloud deja una copia llamada "archivo 2.ts" junto al original. Son copias
+# idénticas, no aportan nada y además rompen el typecheck local porque
+# TypeScript las compila como si fueran módulos aparte.
+* [0-9].*
