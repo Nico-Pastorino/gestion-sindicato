@@ -317,6 +317,14 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
     !missingSalary &&
     (!projectionRequired || projection !== null);
 
+  // Para el mensaje junto al botón: qué campos concretos faltan
+  const missingFields = [
+    !affiliate && "el afiliado",
+    !form.date && "la fecha de otorgamiento",
+    form.totalAmount <= 0 && "el monto otorgado",
+    form.installmentAmount <= 0 && "la cuota mensual",
+  ].filter((f): f is string => Boolean(f));
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {serverError && (
@@ -775,15 +783,17 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
         {/* Por qué está deshabilitado el botón, en palabras */}
         {!canSubmit && !isPending && (
           <p className="text-sm text-[hsl(var(--muted-foreground))]">
-            {isProjecting
-              ? "Verificando el tope del 30%…"
-              : missingSalary
-                ? "Falta cargar el sueldo bruto del afiliado."
-                : hasConflicts
-                  ? "La cuota supera el tope del 30% en algún mes (mirá el detalle arriba)."
-                  : projectionFailed
-                    ? "Falló la verificación del tope — reintentá arriba."
-                    : "Completá los datos para habilitar el botón."}
+            {missingSalary
+              ? "Falta cargar el sueldo bruto del afiliado (más arriba en este formulario)."
+              : hasConflicts
+                ? "La cuota supera el tope del 30% en algún mes (mirá el detalle arriba)."
+                : projectionFailed
+                  ? "Falló la verificación del tope — reintentá arriba."
+                  : isProjecting || (projectionRequired && projection === null)
+                    ? "Verificando el tope del 30%… un segundo."
+                    : missingFields.length > 0
+                      ? `Falta completar: ${missingFields.join(", ")}.`
+                      : "Completá los datos para habilitar el botón."}
           </p>
         )}
         <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>
