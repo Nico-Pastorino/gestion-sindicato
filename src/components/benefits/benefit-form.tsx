@@ -103,6 +103,8 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
   // ─── Proyección mensual ───────────────────────────────────────────────────
   const [projection, setProjection] = useState<CreditProjectionResult | null>(null);
   const [isProjecting, setIsProjecting] = useState(false);
+  const [projectionFailed, setProjectionFailed] = useState(false);
+  const [projectionRetry, setProjectionRetry] = useState(0);
   const projectionTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // ─── Campos calculados ────────────────────────────────────────────────────
@@ -167,6 +169,7 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
     projectionTimer.current = setTimeout(async () => {
       if (!affiliate) return;
       setIsProjecting(true);
+      setProjectionFailed(false);
       try {
         const params = new URLSearchParams({
           installmentAmount: String(form.installmentAmount),
@@ -175,16 +178,23 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
           grossSalary: String(form.grossSalary),
         });
         const res = await fetch(`/api/affiliates/${affiliate.id}/credit-projection?${params}`);
-        if (!res.ok) return;
+        if (!res.ok) {
+          setProjectionFailed(true);
+          return;
+        }
         const json = await res.json();
         setProjection(json.data ?? null);
+        if (!json.data) setProjectionFailed(true);
+      } catch {
+        // Sin conexión o servidor caído: avisar en vez de bloquear en silencio
+        setProjectionFailed(true);
       } finally {
         setIsProjecting(false);
       }
     }, 600);
 
     return () => clearTimeout(projectionTimer.current);
-  }, [affiliate, affiliate?.id, form.installmentAmount, form.installmentsCount, firstDueDate, form.grossSalary]);
+  }, [affiliate, affiliate?.id, form.installmentAmount, form.installmentsCount, firstDueDate, form.grossSalary, projectionRetry]);
 
   // ─── Actualización del form ───────────────────────────────────────────────
   function set(field: string, value: string | number) {
@@ -736,7 +746,46 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
       )}
 
       {/* ─── Acciones ───────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-end gap-3">
+
+      {/* La verificación del tope del 30% falló (servidor caído / sin conexión) */}
+      {projectionFailed && projection === null && projectionRequired && (
+        <Alert variant="destructive">
+          <XCircle className="h-4 w-4" />
+          <AlertTitle>No se pudo verificar el tope del 30%</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center gap-3">
+            <span>
+              El sistema no pudo consultar el cupo del afiliado (¿se cortó la conexión con el
+              servidor?). Sin esa verificación no se puede crear el beneficio.
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setProjectionRetry((t) => t + 1)}
+              disabled={isProjecting}
+            >
+              {isProjecting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        {/* Por qué está deshabilitado el botón, en palabras */}
+        {!canSubmit && !isPending && (
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            {isProjecting
+              ? "Verificando el tope del 30%…"
+              : missingSalary
+                ? "Falta cargar el sueldo bruto del afiliado."
+                : hasConflicts
+                  ? "La cuota supera el tope del 30% en algún mes (mirá el detalle arriba)."
+                  : projectionFailed
+                    ? "Falló la verificación del tope — reintentá arriba."
+                    : "Completá los datos para habilitar el botón."}
+          </p>
+        )}
         <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>
           Cancelar
         </Button>
