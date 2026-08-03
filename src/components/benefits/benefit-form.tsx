@@ -103,8 +103,6 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
   // ─── Proyección mensual ───────────────────────────────────────────────────
   const [projection, setProjection] = useState<CreditProjectionResult | null>(null);
   const [isProjecting, setIsProjecting] = useState(false);
-  const [projectionFailed, setProjectionFailed] = useState(false);
-  const [projectionRetry, setProjectionRetry] = useState(0);
   const projectionTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // ─── Campos calculados ────────────────────────────────────────────────────
@@ -169,7 +167,6 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
     projectionTimer.current = setTimeout(async () => {
       if (!affiliate) return;
       setIsProjecting(true);
-      setProjectionFailed(false);
       try {
         const params = new URLSearchParams({
           installmentAmount: String(form.installmentAmount),
@@ -178,23 +175,18 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
           grossSalary: String(form.grossSalary),
         });
         const res = await fetch(`/api/affiliates/${affiliate.id}/credit-projection?${params}`);
-        if (!res.ok) {
-          setProjectionFailed(true);
-          return;
-        }
+        if (!res.ok) return;
         const json = await res.json();
         setProjection(json.data ?? null);
-        if (!json.data) setProjectionFailed(true);
       } catch {
-        // Sin conexión o servidor caído: avisar en vez de bloquear en silencio
-        setProjectionFailed(true);
+        // La proyección es solo informativa: si falla, el servidor valida al guardar.
       } finally {
         setIsProjecting(false);
       }
     }, 600);
 
     return () => clearTimeout(projectionTimer.current);
-  }, [affiliate, affiliate?.id, form.installmentAmount, form.installmentsCount, firstDueDate, form.grossSalary, projectionRetry]);
+  }, [affiliate, affiliate?.id, form.installmentAmount, form.installmentsCount, firstDueDate, form.grossSalary]);
 
   // ─── Actualización del form ───────────────────────────────────────────────
   function set(field: string, value: string | number) {
@@ -232,24 +224,8 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
       e.grossSalary = "Ingresá el sueldo bruto del afiliado";
     }
 
-    // Bloquear si la proyección todavía se está cargando o si tiene conflictos
-    // (solo aplica si ya hay un sueldo válido; sin sueldo no hay proyección que esperar)
-    if (form.grossSalary > 0) {
-      if (isProjecting) {
-        e.installmentAmount = "Verificando disponibilidad mensual, esperá un momento...";
-      } else if (projection && !projection.valid) {
-        e.installmentAmount = "La cuota supera el tope mensual del 30% en uno o más meses";
-      } else if (
-        !projection &&
-        affiliate &&
-        form.installmentAmount > 0 &&
-        form.installmentsCount >= 1 &&
-        form.date
-      ) {
-        // Todos los campos están completos pero la proyección no se cargó aún
-        e.installmentAmount = "Esperando verificación de disponibilidad...";
-      }
-    }
+    // El tope del 30% NO bloquea acá: lo valida el servidor al guardar y,
+    // si la cuota se pasa, el error se muestra en ese momento.
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -304,26 +280,9 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
 
   const maxInstallments = MAX_INSTALLMENTS[form.type] ?? 3;
   const hasConflicts = projection !== null && !projection.valid;
-  const missingSalary = affiliate !== null && form.grossSalary <= 0;
-  const projectionRequired = affiliate !== null &&
-    form.installmentAmount > 0 &&
-    form.installmentsCount >= 1 &&
-    !!form.date &&
-    form.grossSalary > 0;
-  const canSubmit =
-    !isPending &&
-    !isProjecting &&
-    !hasConflicts &&
-    !missingSalary &&
-    (!projectionRequired || projection !== null);
-
-  // Para el mensaje junto al botón: qué campos concretos faltan
-  const missingFields = [
-    !affiliate && "el afiliado",
-    !form.date && "la fecha de otorgamiento",
-    form.totalAmount <= 0 && "el monto otorgado",
-    form.installmentAmount <= 0 && "la cuota mensual",
-  ].filter((f): f is string => Boolean(f));
+  // El botón siempre está habilitado: los campos se validan al apretar Guardar
+  // y el tope del 30% lo controla el servidor en ese momento.
+  const canSubmit = !isPending;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -516,10 +475,11 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
           {/* Montos */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
-              <Label>
+              <Label htmlFor="totalAmount">
                 Monto otorgado / Capital <span className="text-red-500">*</span>
               </Label>
               <CurrencyInput
+                id="totalAmount"
                 value={form.totalAmount}
                 onChange={(v) => set("totalAmount", v)}
                 placeholder="654.361,66"
@@ -554,10 +514,11 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
             </div>
 
             <div className="space-y-1.5">
-              <Label>
+              <Label htmlFor="installmentAmount">
                 Cuota real mensual <span className="text-red-500">*</span>
               </Label>
               <CurrencyInput
+                id="installmentAmount"
                 value={form.installmentAmount}
                 onChange={(v) => set("installmentAmount", v)}
                 placeholder="45.000,00"
@@ -754,56 +715,13 @@ export function BenefitForm({ preselectedAffiliate }: BenefitFormProps) {
       )}
 
       {/* ─── Acciones ───────────────────────────────────────────────────── */}
-
-      {/* La verificación del tope del 30% falló (servidor caído / sin conexión) */}
-      {projectionFailed && projection === null && projectionRequired && (
-        <Alert variant="destructive">
-          <XCircle className="h-4 w-4" />
-          <AlertTitle>No se pudo verificar el tope del 30%</AlertTitle>
-          <AlertDescription className="flex flex-wrap items-center gap-3">
-            <span>
-              El sistema no pudo consultar el cupo del afiliado (¿se cortó la conexión con el
-              servidor?). Sin esa verificación no se puede crear el beneficio.
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setProjectionRetry((t) => t + 1)}
-              disabled={isProjecting}
-            >
-              {isProjecting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Reintentar
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        {/* Por qué está deshabilitado el botón, en palabras */}
-        {!canSubmit && !isPending && (
-          <p className="text-sm text-[hsl(var(--muted-foreground))]">
-            {missingSalary
-              ? "Falta cargar el sueldo bruto del afiliado (más arriba en este formulario)."
-              : hasConflicts
-                ? "La cuota supera el tope del 30% en algún mes (mirá el detalle arriba)."
-                : projectionFailed
-                  ? "Falló la verificación del tope — reintentá arriba."
-                  : isProjecting || (projectionRequired && projection === null)
-                    ? "Verificando el tope del 30%… un segundo."
-                    : missingFields.length > 0
-                      ? `Falta completar: ${missingFields.join(", ")}.`
-                      : "Completá los datos para habilitar el botón."}
-          </p>
-        )}
+      <div className="flex items-center justify-end gap-3">
         <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>
           Cancelar
         </Button>
         <Button type="submit" disabled={!canSubmit}>
           {isPending ? (
             <><Loader2 className="h-4 w-4 animate-spin" />Guardando...</>
-          ) : isProjecting ? (
-            <><Loader2 className="h-4 w-4 animate-spin" />Verificando...</>
           ) : (
             <><Save className="h-4 w-4" />Crear beneficio</>
           )}
