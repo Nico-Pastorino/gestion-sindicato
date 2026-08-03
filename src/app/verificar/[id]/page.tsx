@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Building2, CheckCircle2, ShieldQuestion, XCircle } from "lucide-react";
 import { AffiliateAvatar } from "@/components/affiliates/affiliate-avatar";
 import { formatDate } from "@/lib/utils/date";
@@ -105,15 +104,6 @@ export default async function VerificarCredencialPage({ params }: PageProps) {
                 </div>
               </div>
             )}
-
-            <div className="border-t pt-3 text-center">
-              <Link
-                href={`/afiliados/${affiliate.id}`}
-                className="text-xs text-slate-500 underline-offset-2 hover:underline"
-              >
-                Personal del sindicato: abrir la ficha completa (requiere contraseña)
-              </Link>
-            </div>
           </div>
         )}
       </div>
